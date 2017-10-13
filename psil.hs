@@ -208,21 +208,30 @@ s2l (Scons a b) =
 	--transformée en Lexp
 	sexpTreeReader :: Sexp -> [Sexp]
 	sexpTreeReader (Scons x y) = 
-		case (x,y) of
-		(Snil, y) -> [y]
+		case (x , y) of
+		(Snil , y) -> [y]
 		(x, y) -> (sexpTreeReader x) ++ [y]
 	
 	sexpListManager:: [Sexp] -> Lexp
 	sexpListManager (x:y:xs) =
 		case x:y:xs of
+		[Snum a] -> Lnum a
+		[Ssym a] -> Lvar a
 		--case pour évaluer les Lexp utilisant des primitives
-		(Ssym "+"):_ -> Lapp (s2l x) (map (s2l) xs) 
-		(Ssym "-"):_ -> Lapp (s2l x) (map (s2l) xs)
-		(Ssym "*"):_ -> Lapp (s2l x) (map (s2l) xs)
-		(Ssym "/"):_ -> Lapp (s2l x) (map (s2l) xs)
+		(Ssym "+"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym "-"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym "*"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym "/"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym "<="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym "<"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym ">="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym ">"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym "="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		--case pour traiter les fonctions définies par l'utilisateur
+		--(Ssym a):_
 		--case pour traiter les lambda + eliminer le sucre syntaxique (pas complet)
-		(Ssym "lambda"):(Ssym y):(xs) -> Llambda [y] (sexpListManager (xs))
-		
+		(Ssym "lambda"):(Ssym a):xs -> Llambda [a] (sexpListManager(xs))
+		[] -> error ("dafuck is this yo?!")
 		
 	in sexpListManager(sexpTreeReader(Scons a b))
 	
@@ -281,7 +290,7 @@ env0 = let false = Vcons "false" []
 eval :: Env -> Env -> Lexp -> Value
 eval _senv _denv (Lnum n) = Vnum n
 eval _senv _denv (Lvar x) = 
-	--évaluation d'une variable. Case de base, faudrait ajouter le support
+	--évaluation d'une variable. Cas de base, faudrait ajouter le support
 	--pour les cas où les variables sont dans l'environnement dynamique
 	let a = 
 		case lookup x _senv of
