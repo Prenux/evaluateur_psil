@@ -216,28 +216,56 @@ s2l (Scons a b) =
         (Scons a b, Ssym c) -> (sexpTreeReader x) ++ [y]
         (Scons a b, Snum c) -> (sexpTreeReader x) ++ [y]
 
-    getArgs :: [Sexp] -> [Sexp]
-    getArgs ((Ssym ")"):_) = []
-    getArgs (x:xs) = [x] ++ (getArgs xs)
-    
-    removeArgs :: [Sexp] -> [Sexp]
-    removeArgs ((Ssym ")"):xs) = xs
-    removeArgs (_:xs) = removeArgs xs
+    fst' ::(a, b, c) -> a
+    fst' (w, x, y) = w
+
+    snd' ::(a, b, c) -> b
+    snd' (w, x, y) = x
+
+    trd ::(a, b, c) -> c
+    trd (w, x, y) = y
+
+--(1ière exp parenthèsée, le reste de l'exp, équilibre parenthèses)
+    getArg :: ([Sexp],[Sexp], Int) -> ([Sexp],[Sexp], Int)
+    getArg ([], y:ys, a) = 
+        case ([], y:ys, a) of
+        ([], (Snum z):ys, _) -> getArg ([y],ys, a)
+        ([], (Ssym z):ys, a) -> if z == "(" then getArg ([y], ys, (a+1)) 
+            else getArg ([y], ys, a)
+        ([], [], _) -> ([], [], a)
+    getArg (x:xs,y:ys, a) =
+        case (x:xs,y:ys, a) of
+        (_:_, [], a) -> (x:xs,[], a) 
+        (x:xs, (Ssym z):ys, a) -> if z == "(" then getArg (((x:xs)++[y]), ys, (a+1)) 
+            else getArg (((x:xs)++[y]), ys, a)
+        (x:xs, (Snum z):ys, _) -> getArg (((x:xs)++[y]), ys, a)
+        ([], [], _) -> ([], [], a)
+    getArg (x:xs,(Ssym ")"):ys, a) =
+        if (a == 1) && (x == (Ssym "(")) then (xs,ys, 0) else getArg (x:xs, ys, a-1)
+
+    getVar :: [Sexp] -> Var
+    getVar [Ssym x] = x
 
     sexpListManager:: [Sexp] -> Lexp
     sexpListManager (x:y:xs) =
-		case x:y:xs of
---case pour évaluer les Lexp utilisant des primitives
-        (Ssym "+"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-        (Ssym "-"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-        (Ssym "*"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-        (Ssym "/"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-        (Ssym "<="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-        (Ssym "<"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-        (Ssym ">="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-        (Ssym ">"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-        (Ssym "="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-        (Ssym "lambda"):(Ssym "("):_ -> Llambda (map (s2l) (getArgs xs)) (map (s2l) (removeArgs xs))
+		if length (x:y:xs) == 1 then s2l x else
+			case (x:y:xs) of
+			--case pour évaluer les Lexp utilisant des primitives
+			(Ssym "+"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+			(Ssym "-"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+			(Ssym "*"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+			(Ssym "/"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+			(Ssym "<="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+			(Ssym "<"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+			(Ssym ">="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+			(Ssym ">"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+			(Ssym "="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+			(Ssym "("):_ -> Lapp (sexpListManager(fst'(getArg(([],(x:y:xs),0))))) 
+			    [sexpListManager(snd'(getArg(([], (x:y:xs),0))))]
+			(Ssym "lambda"):_ -> if length (fst'(getArg ([],y:xs,0))) == 1
+			    then Llambda [getVar(fst'(getArg(([],(y:xs),0))))]
+			    (sexpListManager(snd'(getArg(([],(y:xs),0)))))
+			    else error ("too lazy to evaluate more complex lambdas")
 --case pour traiter les fonctions définies par l'utilisateur
 --(Ssym a):_ -> Lapp (s2l x) (map (s2l) (y:xs))
 --case pour traiter les lambda + eliminer le sucre syntaxique (pas complet)
@@ -318,10 +346,10 @@ eval _senv _denv (Lapp op args) =
 
 eval _senv _denv (Llambda vars exp) = 
 --évaluation des lambda, pas encore complètement fonctionnel
-	case exp of
-	Lapp op args -> if ((length vars) == (length args)) then eval _senv ((zip vars (map (eval _senv _denv) args))++_denv) op 
-		else error ("I don't know what to do")
-
+    let
+    args = (map (eval _senv _denv) (map Lvar vars))
+    in Vfun (length vars) (\env args -> eval ((zip vars args) ++ env) _denv exp)
+    
 eval _ _ e = error ("Can't eval: " ++ show e)
 
 ---------------------------------------------------------------------------
