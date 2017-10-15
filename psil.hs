@@ -216,19 +216,28 @@ s2l (Scons a b) =
         (Scons a b, Ssym c) -> (sexpTreeReader x) ++ [y]
         (Scons a b, Snum c) -> (sexpTreeReader x) ++ [y]
 
+    getArgs :: [Sexp] -> [Sexp]
+    getArgs ((Ssym ")"):_) = []
+    getArgs (x:xs) = [x] ++ (getArgs xs)
+    
+    removeArgs :: [Sexp] -> [Sexp]
+    removeArgs ((Ssym ")"):xs) = xs
+    removeArgs (_:xs) = removeArgs xs
+
     sexpListManager:: [Sexp] -> Lexp
     sexpListManager (x:y:xs) =
 		case x:y:xs of
 --case pour évaluer les Lexp utilisant des primitives
-		(Ssym "+"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-		(Ssym "-"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-		(Ssym "*"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-		(Ssym "/"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-		(Ssym "<="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-		(Ssym "<"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-		(Ssym ">="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-		(Ssym ">"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-		(Ssym "="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+        (Ssym "+"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+        (Ssym "-"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+        (Ssym "*"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+        (Ssym "/"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+        (Ssym "<="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+        (Ssym "<"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+        (Ssym ">="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+        (Ssym ">"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+        (Ssym "="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+        (Ssym "lambda"):(Ssym "("):_ -> Llambda (map (s2l) (getArgs xs)) (map (s2l) (removeArgs xs))
 --case pour traiter les fonctions définies par l'utilisateur
 --(Ssym a):_ -> Lapp (s2l x) (map (s2l) (y:xs))
 --case pour traiter les lambda + eliminer le sucre syntaxique (pas complet)
