@@ -290,9 +290,10 @@ eval _senv _denv (Lapp op args) =
 
 eval _senv _denv (Llambda vars exp) = 
 --évaluation des lambda, pas encore complètement fonctionnel
-	case exp of
-	Lapp op args -> if ((length vars) == (length args)) then eval _senv ((zip vars (map (eval _senv _denv) args))++_denv) op 
-		else error ("I don't know what to do")
+    let
+    varTags = (map Lvar vars)
+    args = (map (eval _senv _denv) varTags)
+    in Vfun (length vars) (\env args -> eval ((zip vars args) ++ env) _denv exp)
 
 eval _ _ e = error ("Can't eval: " ++ show e)
 
