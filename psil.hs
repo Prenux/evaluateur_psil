@@ -209,9 +209,8 @@ s2l (Scons Snil a) =
     (Lvar b)
 -- appel de function, on rajoutera les args en remontant l'arbre
         | b `elem` ["+","-","*","/","<=","<",">=",">","="] -> Lapp (Lvar b) []
---mise en array 
         | otherwise -> Lvar b
-
+    (Llambda b c) -> Lapp (Llambda b c) []
 -- Scons Scons Snum
 s2l (Scons (Scons a b) (Snum c)) = 
     case ((s2l (Scons a b)), (s2l (Snum c))) of
