@@ -207,15 +207,14 @@ s2l (Scons a b) =
 --transforme un arbre de Sexp en une list de Sexp pour être traitée et
 --transformée en Lexp
     sexpTreeReader :: Sexp -> [Sexp]
-    sexpTreeReader (Scons (Scons x y) (Scons a b)) = 
-        sexpTreeReader (Scons x y) ++ sexpTreeReader (Scons a b)
-    sexpTreeReader (Scons x (Scons a b)) = 
-        x : sexpTreeReader (Scons a b)
-    sexpTreeReader (Scons (Scons x y) a) = sexpTreeReader (Scons x y) ++ a:[]
-    sexpTreeReader (Scons x y) =
-        case (x , y) of
-		(Snil, Snil) -> []
-		(Snil, y) -> [y]
+    sexpTreeReader (Scons x y) = 
+        case (x, y) of
+        (Snil, Scons a b) -> [Ssym "("] ++ sexpTreeReader y ++ [Ssym ")"]
+        (Snil, Ssym a) -> [y]
+        (Snil, Snum a) -> [y]
+        (Scons a b, Scons c d) -> (sexpTreeReader x) ++ (sexpTreeReader y)
+        (Scons a b, Ssym c) -> (sexpTreeReader x) ++ [y]
+        (Scons a b, Snum c) -> (sexpTreeReader x) ++ [y]
 
     sexpListManager:: [Sexp] -> Lexp
     sexpListManager (x:y:xs) =
