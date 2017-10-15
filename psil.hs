@@ -197,82 +197,68 @@ data Lexp = Lnum Int            -- Constante entière.
           | Llet BindingType Var Lexp Lexp -- Déclaration de variable locale
           deriving (Show, Eq)
 
+--(1ière exp parenthèsée, le reste de l'exp, équilibre parenthèses)
+getArg :: ([Sexp],[Sexp], Int) -> ([Sexp],[Sexp], Int)
+getArg (x:xs, [], a) = (x:xs, [], a)
+getArg ((Ssym "("):xs,(Ssym ")"):ys, 1) = (xs,ys, 0)
+getArg ([], y:ys, a) = 
+    case ([], y:ys, a) of
+    ([], (Snum z):ys, _) -> ([y],ys, a)
+    ([], (Ssym "("):ys, a) -> getArg ([y], ys, (a+1))
+    ([],(Ssym ")"):ys, a) -> error ("Unbalanced parentheses")
+    ([], _:ys, _) -> getArg ([y],ys, a)
+getArg (x:xs,y:ys, a) =
+    case (x:xs,y:ys, a) of
+    (_:_, [], a) -> (x:xs,[], a)
+    (x:xs, (Ssym "("):ys, a) -> getArg (reverse (y:(reverse(x:xs))), ys, (a+1))
+    (x:xs, (Ssym ")"):ys, a) -> getArg (reverse (y:(reverse(x:xs))), ys, (a-1))
+    (x:xs, _:ys, _) -> getArg (reverse (y:(reverse(x:xs))), ys, a)
+
+--transforme un arbre de Sexp en une list de Sexp pour être traitée et
+--transformée en Lexp
+sexpTreeReader :: Sexp -> [Sexp]
+sexpTreeReader (Scons x y) = 
+    case (x, y) of
+    (Snil, Scons a b) -> [Ssym "("] ++ sexpTreeReader y ++ [Ssym ")"]
+    (Snil, Ssym a) -> if (elem a ["+","-","=","*","<=","<",">=",">","=","lambda"]) then [y] else (Ssym "("):y:(Ssym ")"):[]
+    (Snil, Snum a) -> [y]
+    (Scons a b, Scons c d) -> (sexpTreeReader x) ++ (sexpTreeReader y)
+    (Scons a b, Ssym c) -> (sexpTreeReader x) ++ [y]
+    (Scons a b, Snum c) -> (sexpTreeReader x) ++ [y]
+
+fstArg = \(a, b, c) -> ((\(a, b, c) -> a)(getArg (a, b, c)))
+
+sndArg = \(a, b, c) -> ((\(a, b, c) -> b)(getArg (a, b, c)))
+
+getVar :: [Sexp] -> Var
+getVar [Ssym x] = x
+getVar [Snum a] = error ("not a variable" ++ showSexp (Snum a))
+
+sexpListManager:: [Sexp] -> Lexp
+sexpListManager (x:y:xs) =
+	if length (x:y:xs) == 1 then s2l (head (x:y:xs)) else
+		case (x:y:xs) of
+		--case pour évaluer les Lexp utilisant des primitives
+		(Ssym "+"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym "-"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym "*"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym "/"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym "<="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym "<"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym ">="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym ">"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym "="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
+		(Ssym "("):_ -> Lapp (sexpListManager(fstArg ([], x:y:xs, 0))) 
+		    [sexpListManager (sndArg ([], x:y:xs, 0))]
+		(Ssym "lambda"):_ -> Llambda [getVar (fstArg ([], y:xs, 0))] (sexpListManager (sndArg ([], y:xs, 0)))
+		_:_ -> error (showSexp x)
+
+
 -- Première passe simple qui analyse un Sexp et construit une Lexp équivalente.
 s2l :: Sexp -> Lexp
 s2l (Snum n) = Lnum n
 s2l (Ssym s) = Lvar s
-s2l (Scons a b) = 
-
-	let 
---transforme un arbre de Sexp en une list de Sexp pour être traitée et
---transformée en Lexp
-    sexpTreeReader :: Sexp -> [Sexp]
-    sexpTreeReader (Scons x y) = 
-        case (x, y) of
-        (Snil, Scons a b) -> [Ssym "("] ++ sexpTreeReader y ++ [Ssym ")"]
-        (Snil, Ssym a) -> [y]
-        (Snil, Snum a) -> [y]
-        (Scons a b, Scons c d) -> (sexpTreeReader x) ++ (sexpTreeReader y)
-        (Scons a b, Ssym c) -> (sexpTreeReader x) ++ [y]
-        (Scons a b, Snum c) -> (sexpTreeReader x) ++ [y]
-
-    fst' ::(a, b, c) -> a
-    fst' (w, x, y) = w
-
-    snd' ::(a, b, c) -> b
-    snd' (w, x, y) = x
-
-    trd ::(a, b, c) -> c
-    trd (w, x, y) = y
-
---(1ière exp parenthèsée, le reste de l'exp, équilibre parenthèses)
-    getArg :: ([Sexp],[Sexp], Int) -> ([Sexp],[Sexp], Int)
-    getArg (x:xs, [], a) = (x:xs, [], a)
-    getArg ([], y:ys, a) = 
-        case ([], y:ys, a) of
-        ([], (Snum z):ys, _) -> getArg ([y],ys, a)
-        ([], (Ssym z):ys, a) -> if z == "(" then getArg ([y], ys, (a+1)) 
-            else getArg ([y], ys, a)
-        ([],(Ssym ")"):ys, a) -> error ("Unbalanced parentheses")
-    getArg (x:xs,y:ys, a) =
-        case (x:xs,y:ys, a) of
-        (_:_, [], a) -> (x:xs,[], a) 
-        (x:xs, (Ssym z):ys, a) -> if z == "(" then getArg (((x:xs)++[y]), ys, (a+1)) 
-            else getArg (((x:xs)++[y]), ys, a)
-        (x:xs, (Snum z):ys, _) -> getArg (((x:xs)++[y]), ys, a)
-    getArg (x:xs,(Ssym ")"):ys, a) =
-        if (a == 1) && (x == (Ssym "(")) then (xs,ys, 0) else getArg (x:xs, ys, a-1)
-
-    getVar :: [Sexp] -> Var
-    getVar [Ssym x] = x
-
-    sexpListManager:: [Sexp] -> Lexp
-    sexpListManager (x:y:xs) =
-		if length (x:y:xs) == 1 then s2l x else
-			case (x:y:xs) of
-			--case pour évaluer les Lexp utilisant des primitives
-			(Ssym "+"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-			(Ssym "-"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-			(Ssym "*"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-			(Ssym "/"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-			(Ssym "<="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-			(Ssym "<"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-			(Ssym ">="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-			(Ssym ">"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-			(Ssym "="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-			(Ssym "("):_ -> Lapp (sexpListManager(fst'(getArg(([],(x:y:xs),0))))) 
-			    [sexpListManager(snd'(getArg(([], (x:y:xs),0))))]
-			(Ssym "lambda"):_ -> if length (fst'(getArg ([],y:xs,0))) == 1
-			    then Llambda [getVar(fst'(getArg(([],(y:xs),0))))]
-			    (sexpListManager(snd'(getArg(([],(y:xs),0)))))
-			    else error ("too lazy to evaluate more complex lambdas")
---case pour traiter les fonctions définies par l'utilisateur
---(Ssym a):_ -> Lapp (s2l x) (map (s2l) (y:xs))
---case pour traiter les lambda + eliminer le sucre syntaxique (pas complet)
---(Ssym "lambda"):(Ssym a):xs -> Llambda [a] (sexpListManager(xs))
---[] -> error ("dafuck is this yo?!")
-
-	in sexpListManager(sexpTreeReader(Scons a b))
+s2l (Scons a b) = sexpListManager(sexpTreeReader(Scons a b))
 
 s2l se = error ("Malformed Sexp: " ++ (showSexp se))
 
