@@ -201,12 +201,23 @@ data Lexp = Lnum Int            -- Constante entière.
 s2l :: Sexp -> Lexp
 s2l (Snum n) = Lnum n
 s2l (Ssym s) = Lvar s
---Scons Snil a => sert seullement ajouterdes parenthese autour
+-- One var lambda
+s2l (Scons (Scons (Scons Snil (Ssym "lambda")) (Scons Snil (Ssym x))) y) = Llambda [x] (s2l y)
+--Scons Snil a => sert seullement ajouter des parenthese autour
 s2l (Scons Snil a) =
     case (s2l a) of
     (Lvar b)
-        | b `elem` ["+","-","*","/","<=","<",">=",">","="] -> Lapp (s2l a)
-s2l (Scons (Scons (Scons Snil (Ssym "lambda")) (Scons Snil (Ssym x))) (y)) = let Lvar varx = s2l (Ssym x) in Llambda [varx] (s2l y)
+-- appel de function, on rajoutera les args en remontant l'arbre
+        | b `elem` ["+","-","*","/","<=","<",">=",">","="] -> Lapp (Lvar b) []
+--mise en array 
+        | otherwise -> Lvar b
+
+-- Scons Scons Snum
+s2l (Scons (Scons a b) (Snum c)) = 
+    case ((s2l (Scons a b)), (s2l (Snum c))) of
+-- on a (Lapp, Lnum), on append Lnum aux args du Lapp
+    ((Lapp x y), (Lnum z)) -> Lapp x (y ++ (Lnum z):[])
+
 s2l se = error ("Malformed Sexp: " ++ (showSexp se))
 
 ---------------------------------------------------------------------------
