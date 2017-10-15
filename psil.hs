@@ -235,8 +235,8 @@ getVar [Ssym x] = x
 getVar [Snum a] = error ("not a variable" ++ showSexp (Snum a))
 
 sexpListManager:: [Sexp] -> Lexp
+sexpListManager [x] = s2l x
 sexpListManager (x:y:xs) =
-	if length (x:y:xs) == 1 then s2l (head (x:y:xs)) else
 		case (x:y:xs) of
 		--case pour évaluer les Lexp utilisant des primitives
 		(Ssym "+"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
