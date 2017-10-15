@@ -201,43 +201,12 @@ data Lexp = Lnum Int            -- Constante entière.
 s2l :: Sexp -> Lexp
 s2l (Snum n) = Lnum n
 s2l (Ssym s) = Lvar s
-s2l (Scons a b) = 
-
-	let 
---transforme un arbre de Sexp en une list de Sexp pour être traitée et
---transformée en Lexp
-    sexpTreeReader :: Sexp -> [Sexp]
-    sexpTreeReader (Scons (Scons x y) (Scons a b)) = 
-        sexpTreeReader (Scons x y) ++ sexpTreeReader (Scons a b)
-    sexpTreeReader (Scons x (Scons a b)) = 
-        x : sexpTreeReader (Scons a b)
-    sexpTreeReader (Scons (Scons x y) a) = sexpTreeReader (Scons x y) ++ a:[]
-    sexpTreeReader (Scons x y) =
-        case (x , y) of
-		(Snil, Snil) -> []
-		(Snil, y) -> [y]
-
-    sexpListManager:: [Sexp] -> Lexp
-    sexpListManager (x:y:xs) =
-		case x:y:xs of
---case pour évaluer les Lexp utilisant des primitives
-		(Ssym "+"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-		(Ssym "-"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-		(Ssym "*"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-		(Ssym "/"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-		(Ssym "<="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-		(Ssym "<"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-		(Ssym ">="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-		(Ssym ">"):_ -> Lapp (s2l x) (map (s2l) (y:xs))
-		(Ssym "="):_ -> Lapp (s2l x) (map (s2l) (y:xs))
---case pour traiter les fonctions définies par l'utilisateur
---(Ssym a):_ -> Lapp (s2l x) (map (s2l) (y:xs))
---case pour traiter les lambda + eliminer le sucre syntaxique (pas complet)
---(Ssym "lambda"):(Ssym a):xs -> Llambda [a] (sexpListManager(xs))
---[] -> error ("dafuck is this yo?!")
-
-	in sexpListManager(sexpTreeReader(Scons a b))
-
+--Scons Snil a => sert seullement ajouterdes parenthese autour
+s2l (Scons Snil a) =
+    case (s2l a) of
+    (Lvar b)
+        | b `elem` ["+","-","*","/","<=","<",">=",">","="] -> Lapp (s2l a)
+s2l (Scons (Scons (Scons Snil (Ssym "lambda")) (Scons Snil (Ssym x))) (y)) = let Lvar varx = s2l (Ssym x) in Llambda [varx] (s2l y)
 s2l se = error ("Malformed Sexp: " ++ (showSexp se))
 
 ---------------------------------------------------------------------------
