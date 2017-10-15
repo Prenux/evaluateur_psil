@@ -227,19 +227,19 @@ s2l (Scons a b) =
 
 --(1ière exp parenthèsée, le reste de l'exp, équilibre parenthèses)
     getArg :: ([Sexp],[Sexp], Int) -> ([Sexp],[Sexp], Int)
+    getArg (x:xs, [], a) = (x:xs, [], a)
     getArg ([], y:ys, a) = 
         case ([], y:ys, a) of
         ([], (Snum z):ys, _) -> getArg ([y],ys, a)
         ([], (Ssym z):ys, a) -> if z == "(" then getArg ([y], ys, (a+1)) 
             else getArg ([y], ys, a)
-        ([], [], _) -> ([], [], a)
+        ([],(Ssym ")"):ys, a) -> error ("Unbalanced parentheses")
     getArg (x:xs,y:ys, a) =
         case (x:xs,y:ys, a) of
         (_:_, [], a) -> (x:xs,[], a) 
         (x:xs, (Ssym z):ys, a) -> if z == "(" then getArg (((x:xs)++[y]), ys, (a+1)) 
             else getArg (((x:xs)++[y]), ys, a)
         (x:xs, (Snum z):ys, _) -> getArg (((x:xs)++[y]), ys, a)
-        ([], [], _) -> ([], [], a)
     getArg (x:xs,(Ssym ")"):ys, a) =
         if (a == 1) && (x == (Ssym "(")) then (xs,ys, 0) else getArg (x:xs, ys, a-1)
 
@@ -347,7 +347,8 @@ eval _senv _denv (Lapp op args) =
 eval _senv _denv (Llambda vars exp) = 
 --évaluation des lambda, pas encore complètement fonctionnel
     let
-    args = (map (eval _senv _denv) (map Lvar vars))
+    varTags = (map Lvar vars)
+    args = (map (eval _senv _denv) varTags)
     in Vfun (length vars) (\env args -> eval ((zip vars args) ++ env) _denv exp)
     
 eval _ _ e = error ("Can't eval: " ++ show e)
