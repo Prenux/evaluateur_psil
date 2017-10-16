@@ -197,12 +197,21 @@ data Lexp = Lnum Int            -- Constante entière.
           | Llet BindingType Var Lexp Lexp -- Déclaration de variable locale
           deriving (Show, Eq)
 
+sconsToVarArr :: Sexp -> [Var]
+sconsToVarArr (Scons Snil (Ssym x)) = [x]
+sconsToVarArr (Scons (Scons a b) (Ssym x)) = (sconsToVarArr (Scons a b)) ++ [x]
+
 -- Première passe simple qui analyse un Sexp et construit une Lexp équivalente.
 s2l :: Sexp -> Lexp
 s2l (Snum n) = Lnum n
 s2l (Ssym s) = Lvar s
+
 -- One var lambda
-s2l (Scons (Scons (Scons Snil (Ssym "lambda")) (Scons Snil (Ssym x))) y) = Llambda [x] (s2l y)
+--s2l (Scons (Scons (Scons Snil (Ssym "lambda")) (Scons Snil (Ssym x))) y) = Llambda [x] (s2l y)
+
+--More Generic lambda NOT WORKING
+s2l (Scons (Scons (Scons Snil (Ssym "lambda")) x) y) = Llambda (sconsToVarArr x) (s2l y)
+
 --Scons Snil a => sert seullement ajouter des parenthese autour
 s2l (Scons Snil a) =
     case (s2l a) of
@@ -211,11 +220,13 @@ s2l (Scons Snil a) =
         | b `elem` ["+","-","*","/","<=","<",">=",">","="] -> Lapp (Lvar b) []
         | otherwise -> Lvar b
     (Llambda b c) -> Lapp (Llambda b c) []
--- Scons Scons Snum
-s2l (Scons (Scons a b) (Snum c)) = 
-    case ((s2l (Scons a b)), (s2l (Snum c))) of
+
+-- Scons Scons Sexp
+s2l (Scons (Scons a b) c) = 
+    case ((s2l (Scons a b)), (s2l c)) of
 -- on a (Lapp, Lnum), on append Lnum aux args du Lapp
     ((Lapp x y), (Lnum z)) -> Lapp x (y ++ (Lnum z):[])
+    ((Lapp x y), (Lvar z)) -> Lapp x (y ++ (Lvar z):[])
 
 s2l se = error ("Malformed Sexp: " ++ (showSexp se))
 
@@ -279,6 +290,16 @@ eval _senv _denv (Lvar x) =
 		Nothing -> error "Variable not found"
 		Just a -> a
 	in a
+
+
+eval _senv _denv (Llambda vars exp) = 
+--évaluation des lambda, pas encore complètement fonctionnel
+    let
+    varTags = (map Lvar vars)
+    args = (map (eval _senv _denv) varTags)
+    in Vfun (length vars) (\env args -> eval ((zip vars args) ++ env) _denv exp)
+
+
 eval _senv _denv (Lapp op args) = 
 --évaluation d'une fonction. Supporte uniquement les fonctions définies
 --dans l'environnement statique présentement
@@ -287,12 +308,6 @@ eval _senv _denv (Lapp op args) =
 	Vfun a f -> if (a == (length args)) then f _senv (map (eval _senv _denv) args) 
 		else error ("incorrect number of arguments")
 
-eval _senv _denv (Llambda vars exp) = 
---évaluation des lambda, pas encore complètement fonctionnel
-    let
-    varTags = (map Lvar vars)
-    args = (map (eval _senv _denv) varTags)
-    in Vfun (length vars) (\env args -> eval ((zip vars args) ++ env) _denv exp)
 
 eval _ _ e = error ("Can't eval: " ++ show e)
 
