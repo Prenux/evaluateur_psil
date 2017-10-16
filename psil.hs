@@ -220,6 +220,8 @@ s2l (Scons Snil a) =
         | b `elem` ["+","-","*","/","<=","<",">=",">","="] -> Lapp (Lvar b) []
         | otherwise -> Lvar b
     (Llambda b c) -> Lapp (Llambda b c) []
+--Not sure if gusta for all case but worth a try
+    (Lapp x y) -> Lapp x y
 
 -- Scons Scons Sexp
 s2l (Scons (Scons a b) c) = 
