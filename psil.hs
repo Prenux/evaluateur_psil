@@ -304,14 +304,23 @@ env0 = let false = Vcons "false" []
 
 eval :: Env -> Env -> Lexp -> Value
 eval _senv _denv (Lnum n) = Vnum n
+
+eval _senv [] (Lvar x) = 
+--évaluation d'une variable lorsqu'aucune déclaration dynamique n'est active
+        let a = 
+	        case lookup x _senv of 
+	        Nothing -> error "Variable not found"
+		    Just a -> a
+    	in a
+
 eval _senv _denv (Lvar x) = 
---évaluation d'une variable. Cas de base, faudrait ajouter le support
---pour les cas où les variables sont dans l'environnement dynamique
-	let a = 
-		case lookup x _senv of
-		Nothing -> error "Variable not found"
-		Just a -> a
-	in a
+--évaluation d'une variable.
+	if (lookup x _denv) == Just v then v else 
+	    let a = 
+	        case lookup x _senv of 
+	        Nothing -> error "Variable not found"
+		    Just a -> a
+    	in a
 
 
 eval _senv _denv (Llambda vars exp) = 
@@ -348,6 +357,11 @@ eval _senv _denv (Lcase test (x:xs)) =
             ((length vals) == (length vars)) 
             then eval ((zip vars vals) ++ _senv) _denv (snd x) 
             else eval _senv _denv (Lcase test xs)
+
+eval _senv _denv (Llet bind var val exp) =
+        case bind of
+        Lexical -> eval ((var,(eval _senv _denv val)):_senv) _denv exp
+        Dynamic -> eval _senv ((var,(eval _senv _denv val)):_denv) exp
 
 eval _ _ e = error ("Can't eval: " ++ show e)
 
