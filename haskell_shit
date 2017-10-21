@@ -1,0 +1,37 @@
+Scons (
+    Scons 
+        Snil 
+        (Scons 
+            (Scons 
+                Snil 
+                (Scons 
+                    (Scons
+                        Snil 
+                        (Scons 
+                            (Scons 
+                                (Scons 
+                                    Snil 
+                                    (Ssym "lambda"))
+                                (Scons 
+                                    (Scons 
+                                        (Scons 
+                                            Snil
+                                            (Ssym "x"))
+                                        (Ssym "y")) 
+                                    (Ssym "z"))) 
+                            (Scons 
+                                (Scons 
+                                    (Scons 
+                                        Snil 
+                                        (Ssym "*"))
+                                    (Scons 
+                                        (Scons 
+                                            (Scons 
+                                                Snil 
+                                                (Ssym "+")) 
+                                            (Ssym "y")) 
+                                        (Ssym "x"))) 
+                                (Ssym "z"))))
+                    (Snum 2)))
+            (Snum 3)))
+    (Snum 4)
