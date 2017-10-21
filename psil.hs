@@ -311,6 +311,7 @@ eval _senv _denv (Lapp op args) =
 	Vfun a f -> if (a == (length args)) then f _senv (map (eval _senv _denv) args) 
 		else error ("incorrect number of arguments")
 
+eval _senv _denv (Lcons tag args) = Vcons tag (map (eval _senv _denv) args) 
 
 eval _ _ e = error ("Can't eval: " ++ show e)
 
