@@ -206,11 +206,11 @@ s2l :: Sexp -> Lexp
 s2l (Snum n) = Lnum n
 s2l (Ssym s) = Lvar s
 
--- One var lambda
---s2l (Scons (Scons (Scons Snil (Ssym "lambda")) (Scons Snil (Ssym x))) y) = Llambda [x] (s2l y)
-
 --More Generic lambda NOT WORKING
 s2l (Scons (Scons (Scons Snil (Ssym "lambda")) x) y) = Llambda (sconsToVarArr x) (s2l y)
+
+-- Cons
+s2l (Scons (Scons Snil (Ssym "cons")) (Ssym a)) = Lcons a []
 
 --Scons Snil a => sert seullement ajouter des parenthese autour
 s2l (Scons Snil a) =
@@ -218,6 +218,7 @@ s2l (Scons Snil a) =
     (Lvar b)
 -- appel de function, on rajoutera les args en remontant l'arbre
         | b `elem` ["+","-","*","/","<=","<",">=",">","="] -> Lapp (Lvar b) []
+        | b == "cons" -> Lcons "" []
         | otherwise -> Lvar b
     (Llambda b c) -> Lapp (Llambda b c) []
 --Not sure if gusta for all case but worth a try
@@ -227,9 +228,11 @@ s2l (Scons Snil a) =
 s2l (Scons (Scons a b) c) = 
     case ((s2l (Scons a b)), (s2l c)) of
 -- on a (Lapp, Lnum), on append Lnum aux args du Lapp
-    ((Lapp x y), (Lnum z)) -> Lapp x (y ++ (Lnum z):[])
-    ((Lapp x y), (Lvar z)) -> Lapp x (y ++ (Lvar z):[])
-    ((Lapp x y), (Lapp u v)) -> Lapp x (y ++ (Lapp u v):[])
+      ((Lapp x y), z) -> Lapp x (y ++ z:[])
+--    ((Lapp x y), (Lnum z)) -> Lapp x (y ++ (Lnum z):[])
+--    ((Lapp x y), (Lvar z)) -> Lapp x (y ++ (Lvar z):[])
+--    ((Lapp x y), (Lapp u v)) -> Lapp x (y ++ (Lapp u v):[])
+      ((Lcons x y), z) -> Lcons x (y ++ z:[])
 
 s2l se = error ("Malformed Sexp: " ++ (showSexp se))
 
