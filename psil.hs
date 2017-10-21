@@ -314,6 +314,23 @@ eval _senv _denv (Lapp op args) =
 
 eval _senv _denv (Lcons tag args) = Vcons tag (map (eval _senv _denv) args) 
 
+--si, lors de l'évaluation, on passe au travers de tous les patterns sans succès
+--la liste des patterns est donc non-exhaustive donc on lace une erreur
+eval _senv _denv (Lcase test []) = error ("Can't eval: non-exhaustive patterns in case statement")
+
+eval _senv _denv (Lcase test x:xs) = 
+        let pattern = eval _senv _denv_ test
+        in case (pattern, fst x) of
+--si le tag et le nombre de valeurs sont conformes, on assume qu'on a trouvé le
+--pattern recherché, donc on evalue l'expression associée à ce pattern
+        (Vcons tag vals, Just (tag2, vars)) -> if (tag == tag2) && 
+            ((length vals) == (length vars)) 
+            then eval ((zip vars vals) ++ _senv) _denv (snd x) 
+            else eval _senv _denv (Lcase test xs)
+--si le pattern est "Nothing", on peut assumer que c'est le catch-all case, donc
+--on évalue l'expression associée dès qu'on l'atteint
+        (Vcons tag vals, Nothing) -> eval _senv _denv (snd x)
+
 eval _ _ e = error ("Can't eval: " ++ show e)
 
 ---------------------------------------------------------------------------
