@@ -229,6 +229,7 @@ s2l (Scons (Scons a b) c) =
 -- on a (Lapp, Lnum), on append Lnum aux args du Lapp
     ((Lapp x y), (Lnum z)) -> Lapp x (y ++ (Lnum z):[])
     ((Lapp x y), (Lvar z)) -> Lapp x (y ++ (Lvar z):[])
+    ((Lapp x y), (Lapp u v)) -> Lapp x (y ++ (Lapp u v):[])
 
 s2l se = error ("Malformed Sexp: " ++ (showSexp se))
 
