@@ -224,6 +224,9 @@ s2l (Scons (Scons (Scons Snil (Ssym "lambda")) x) y) = Llambda (sconsToVarArr x)
 -- Cons
 s2l (Scons (Scons Snil (Ssym "cons")) (Ssym a)) = Lcons a []
 
+-- IF
+s2l (Scons (Scons (Scons (Scons Snil (Ssym "if")) test) x) y) = Lcase (s2l test) [(Just ("true",[]), (s2l x)),(Just ("false",[]),(s2l y))]
+
 -- Scons Snil a => sert seullement ajouter des parenthese autour
 s2l (Scons Snil a) =
     case (s2l a) of
@@ -333,18 +336,18 @@ eval _senv _denv (Lcons tag args) = Vcons tag (map (eval _senv _denv) args)
 --la liste des patterns est donc non-exhaustive donc on lace une erreur
 eval _senv _denv (Lcase test []) = error ("Can't eval: non-exhaustive patterns in case statement")
 
-eval _senv _denv (Lcase test x:xs) = 
-        let pattern = eval _senv _denv_ test
+eval _senv _denv (Lcase test (x:xs)) = 
+        let pattern = eval _senv _denv test
         in case (pattern, fst x) of
+--si le pattern est "_", on peut assumer que c'est le catch-all case, donc
+--on évalue l'expression associée dès qu'on l'atteint
+        (Vcons tag vals, Just ("_",_)) -> eval _senv _denv (snd x)
 --si le tag et le nombre de valeurs sont conformes, on assume qu'on a trouvé le
 --pattern recherché, donc on evalue l'expression associée à ce pattern
         (Vcons tag vals, Just (tag2, vars)) -> if (tag == tag2) && 
             ((length vals) == (length vars)) 
             then eval ((zip vars vals) ++ _senv) _denv (snd x) 
             else eval _senv _denv (Lcase test xs)
---si le pattern est "Nothing", on peut assumer que c'est le catch-all case, donc
---on évalue l'expression associée dès qu'on l'atteint
-        (Vcons tag vals, Nothing) -> eval _senv _denv (snd x)
 
 eval _ _ e = error ("Can't eval: " ++ show e)
 

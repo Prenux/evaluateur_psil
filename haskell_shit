@@ -1,3 +1,5 @@
+CASE
+
 Scons (
     Scons (
         Scons (
@@ -37,3 +39,24 @@ Scons (
                     (Ssym "+"))
                 (Ssym "x"))
             (Ssym "y")))
+
+
+
+IF
+
+
+Scons (
+    Scons (
+        Scons (
+            Scons
+                Snil
+                (Ssym "if"))
+            (Scons
+                (Scons
+                    (Scons
+                        Snil
+                        (Ssym ">"))
+                    (Snum 3))
+                (Snum 4)))
+        (Snum 5))
+    (Snum 6)
