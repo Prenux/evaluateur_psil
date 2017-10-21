@@ -1,37 +1,39 @@
 Scons (
-    Scons 
-        Snil 
-        (Scons 
-            (Scons 
+    Scons (
+        Scons (
+            Scons 
                 Snil 
+                (Ssym "case"))
+            (Scons 
                 (Scons 
                     (Scons
-                        Snil 
-                        (Scons 
-                            (Scons 
-                                (Scons 
-                                    Snil 
-                                    (Ssym "lambda"))
-                                (Scons 
-                                    (Scons 
-                                        (Scons 
-                                            Snil
-                                            (Ssym "x"))
-                                        (Ssym "y")) 
-                                    (Ssym "z"))) 
-                            (Scons 
-                                (Scons 
-                                    (Scons 
-                                        Snil 
-                                        (Ssym "*"))
-                                    (Scons 
-                                        (Scons 
-                                            (Scons 
-                                                Snil 
-                                                (Ssym "+")) 
-                                            (Ssym "y")) 
-                                        (Ssym "x"))) 
-                                (Ssym "z"))))
-                    (Snum 2)))
-            (Snum 3)))
-    (Snum 4)
+                        (Scons
+                            Snil
+                            (Ssym "cons"))
+                        (Ssym "cons"))
+                    (Snum 1))
+                (Snum 2)))
+        (Scons
+            (Scons
+                Snil
+                (Scons
+                    Snil
+                    (Ssym "nil")))
+            (Snum 1)))
+    (Scons
+        (Scons
+            Snil
+            (Scons
+                (Scons
+                    (Scons
+                        Snil
+                        (Ssym "cons"))
+                    (Ssym "x"))
+                (Ssym "y")))
+        (Scons
+            (Scons
+                (Scons
+                    Snil
+                    (Ssym "+"))
+                (Ssym "x"))
+            (Ssym "y")))
