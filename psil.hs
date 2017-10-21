@@ -201,10 +201,22 @@ sconsToVarArr :: Sexp -> [Var]
 sconsToVarArr (Scons Snil (Ssym x)) = [x]
 sconsToVarArr (Scons (Scons a b) (Ssym x)) = (sconsToVarArr (Scons a b)) ++ [x]
 
+getPat :: Sexp -> Pat
+-- Not sure if gusta all the time... (i.e. : (Lapp (Llamba x y) z))
+getPat (Scons Snil (Scons a b)) = (getPat (Scons a b))
+-- got label, so create pattern
+getPat (Scons Snil (Ssym a)) = Just (a,[])
+-- label will be in the Scons, so append Ssym to [Var]
+getPat (Scons (Scons a b) (Ssym c)) = 
+    case (getPat (Scons a b)) of
+    (Just (a,b)) -> Just (a,(b ++ c:[]))
+
 -- Première passe simple qui analyse un Sexp et construit une Lexp équivalente.
 s2l :: Sexp -> Lexp
 s2l (Snum n) = Lnum n
 s2l (Ssym s) = Lvar s
+
+s2l (Scons (Scons Snil (Ssym "case")) a) = Lcase (s2l a) []
 
 -- Generic lambda 
 s2l (Scons (Scons (Scons Snil (Ssym "lambda")) x) y) = Llambda (sconsToVarArr x) (s2l y)
@@ -226,11 +238,14 @@ s2l (Scons Snil a) =
 
 -- Scons Scons Sexp
 s2l (Scons (Scons a b) c) = 
-    case ((s2l (Scons a b)), (s2l c)) of
+    case (s2l (Scons a b), c) of
 -- ajoute args a Lapp 
-      ((Lapp x y), z) -> Lapp x (y ++ z:[])
+    ((Lapp x y), _) -> Lapp x (y ++ (s2l c):[])
 -- ajoute args au cons
-      ((Lcons x y), z) -> Lcons x (y ++ z:[])
+    ((Lcons x y), _) -> Lcons x (y ++ (s2l c):[])
+-- ajoute case to Lcase
+    ((Lcase x y), (Scons u v)) -> Lcase x (y ++ ((getPat u), (s2l v)):[])
+
 
 s2l se = error ("Malformed Sexp: " ++ (showSexp se))
 
