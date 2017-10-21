@@ -211,11 +211,22 @@ getPat (Scons (Scons a b) (Ssym c)) =
     case (getPat (Scons a b)) of
     (Just (a,b)) -> Just (a,(b ++ c:[]))
 
+getVar :: Sexp -> Var
+getVar (Scons Snil (Ssym a)) = a
+getVar (Scons a b) = getVar a
+
+getVal :: Sexp -> Lexp
+getVal (Scons )
+
 -- Première passe simple qui analyse un Sexp et construit une Lexp équivalente.
 s2l :: Sexp -> Lexp
 s2l (Snum n) = Lnum n
 s2l (Ssym s) = Lvar s
 
+-- Slet
+s2l (Scons (Scons (Scons Snil (Ssym "slet")) (Scons vars vals)) exp) = Llet Lexical (getVar vars) (Llambda (tail (sconsToVarArr vars)) (s2l vals)) (s2l exp)
+
+-- Case
 s2l (Scons (Scons Snil (Ssym "case")) a) = Lcase (s2l a) []
 
 -- Generic lambda 
