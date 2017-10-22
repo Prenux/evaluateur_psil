@@ -215,9 +215,6 @@ getVar :: Sexp -> Var
 getVar (Scons Snil (Ssym a)) = a
 getVar (Scons a b) = getVar a
 
-getVal :: Sexp -> Lexp
-getVal (Scons )
-
 -- Première passe simple qui analyse un Sexp et construit une Lexp équivalente.
 s2l :: Sexp -> Lexp
 s2l (Snum n) = Lnum n
@@ -259,7 +256,7 @@ s2l (Scons (Scons a b) c) =
     ((Lcons x y), _) -> Lcons x (y ++ (s2l c):[])
 -- ajoute case to Lcase
     ((Lcase x y), (Scons u v)) -> Lcase x (y ++ ((getPat u), (s2l v)):[])
-
+-- appeler le lambda avec les bin params pour le Llet
 
 s2l se = error ("Malformed Sexp: " ++ (showSexp se))
 
@@ -316,22 +313,21 @@ env0 = let false = Vcons "false" []
 eval :: Env -> Env -> Lexp -> Value
 eval _senv _denv (Lnum n) = Vnum n
 
-eval _senv [] (Lvar x) = 
 --évaluation d'une variable lorsqu'aucune déclaration dynamique n'est active
-        let a = 
-	        case lookup x _senv of 
-	        Nothing -> error "Variable not found"
-		    Just a -> a
-    	in a
+eval _senv [] (Lvar x) =
+    case (lookup x _senv) of 
+    Nothing -> error "Variable not found"
+    (Just a) -> a
 
 eval _senv _denv (Lvar x) = 
 --évaluation d'une variable.
-	if (lookup x _denv) == Just v then v else 
-	    let a = 
-	        case lookup x _senv of 
-	        Nothing -> error "Variable not found"
-		    Just a -> a
-    	in a
+    case (lookup x _denv) of
+    (Just a) -> a
+    Nothing ->
+        case lookup x _senv of 
+        Nothing -> error "Variable not found"
+        Just a -> a
+
 
 
 eval _senv _denv (Llambda vars exp) = 
