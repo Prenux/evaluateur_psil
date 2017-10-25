@@ -213,6 +213,7 @@ getPat (Scons (Scons a b) (Ssym c)) =
 
 getVar :: Sexp -> Var
 getVar (Scons Snil (Ssym a)) = a
+getVar (Scons Snil (Scons a b)) = getVar (Scons a b)
 getVar (Scons a b) = getVar a
 
 -- Première passe simple qui analyse un Sexp et construit une Lexp équivalente.

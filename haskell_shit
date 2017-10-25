@@ -69,13 +69,13 @@ Scons (
         Scons 
             Snil 
             (Ssym "slet"))
-    (Scons
-        Snil
         (Scons
+            Snil
             (Scons
-                Snil
-                (Ssym "x"))
-            (Snum 1))))
+                (Scons
+                    Snil
+                    (Ssym "x"))
+                (Snum 1))))
     (Ssym "x")
 
 Scons (
@@ -83,43 +83,70 @@ Scons (
         Scons 
             Snil
             (Ssym "slet"))
-    (Scons 
+        (Scons 
+            (Scons
+                Snil
+                (Scons
+                    (Scons
+                        Snil
+                        (Scons
+                            (Scons
+                                Snil
+                                (Ssym "curried+"))
+                            (Ssym "x")))
+                    (Scons
+                        (Scons
+                            (Scons
+                                Snil
+                                (Ssym "lambda"))
+                            (Scons
+                                Snil
+                                (Ssym "y")))
+                        (Scons
+                            (Scons
+                                (Scons
+                                    Snil
+                                    (Ssym "+"))
+                                (Ssym "x"))
+                            (Ssym "y")))))
+            (Scons
+                (Scons
+                    Snil
+                    (Ssym "x"))
+                (Snum 7))))
+    (Scons
         (Scons
             Snil
             (Scons
                 (Scons
                     Snil
-                    (Scons
-                        (Scons
-                            Snil
-                            (Ssym "curried+"))
-                        (Ssym "x")))
+                    (Ssym "curried+"))
+                (Snum 5)))
+        (Snum 6))
+
+
+Scons (
+    Scons (
+        Scons
+            Snil
+            (Ssym "slet"))(
+        Scons(
+            Scons
+                Snil
                 (Scons
                     (Scons
-                        (Scons
-                            Snil
-                            (Ssym "lambda"))
-                        (Scons
-                            Snil
-                            (Ssym "y")))
-                    (Scons
-                        (Scons
-                            (Scons
-                                Snil
-                                (Ssym "+"))
-                            (Ssym "x"))
-                        (Ssym "y")))))
-        (Scons
+                        Snil
+                        (Ssym "x"))
+                    (Snum 5)))
             (Scons
-                Snil
-                (Ssym "x"))
-            (Snum 7))))
-(Scons
+                (Scons
+                    Snil
+                    (Ssym "y"))
+                (Snum 5))))
     (Scons
-        Snil
         (Scons
             (Scons
                 Snil
-                (Ssym "curried+"))
-            (Snum 5)))
-    (Snum 6))
+                (Ssym "+"))
+            (Ssym "x"))
+        (Ssym "y"))
