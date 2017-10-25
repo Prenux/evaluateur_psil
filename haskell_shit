@@ -150,3 +150,33 @@ Scons (
                 (Ssym "+"))
             (Ssym "x"))
         (Ssym "y"))
+
+Scons (
+    Scons (
+        Scons 
+            Snil
+            (Ssym "slet"))
+        (Scons
+            (Scons
+                Snil
+                (Scons
+                    (Scons
+                        (Scons
+                            Snil
+                            (Ssym "f"))
+                        (Ssym "x"))
+                    (Ssym "y")))
+            (Scons
+                (Scons
+                    (Scons
+                        Snil
+                        (Ssym "+"))
+                    (Ssym "x"))
+                (Ssym "y"))))
+    (Scons
+        (Scons
+            (Scons
+                Snil
+                (Ssym "f"))
+            (Snum 5))
+        (Snum 6))

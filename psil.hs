@@ -200,6 +200,7 @@ data Lexp = Lnum Int            -- Constante entière.
 sconsToVarArr :: Sexp -> [Var]
 sconsToVarArr (Scons Snil (Ssym x)) = [x]
 sconsToVarArr (Scons (Scons a b) (Ssym x)) = (sconsToVarArr (Scons a b)) ++ [x]
+sconsToVarArr (Scons Snil (Scons a b)) = (sconsToVarArr (Scons a b))
 
 getPat :: Sexp -> Pat
 -- Not sure if gusta all the time... (i.e. : (Lapp (Llamba x y) z))
@@ -220,7 +221,7 @@ unsweetner :: Lexp -> Lexp
 unsweetner e = 
     case e of
     Lapp (Llambda var (Llambda [x] (exp))) args -> Lapp (Llambda (var ++ [x]) (exp)) args
-    (Lapp (Llambda var (Lapp f a)) args) -> e
+    _ -> e
      
 
 -- Première passe simple qui analyse un Sexp et construit une Lexp équivalente.
@@ -228,8 +229,16 @@ s2l :: Sexp -> Lexp
 s2l (Snum n) = Lnum n
 s2l (Ssym s) = Lvar s
 
--- Slet
-s2l (Scons (Scons (Scons Snil (Ssym "slet")) (Scons vars vals)) exp) = Llet Lexical (getVar vars) (Llambda (tail (sconsToVarArr vars)) (s2l vals)) (s2l exp)
+-- Slet pour une seule assignation
+s2l (Scons (Scons (Scons Snil (Ssym "slet")) (Scons vars vals)) exp) =
+    case (Scons vars vals) of
+    (Scons Snil (Scons a b)) -> Llet Lexical (getVar a) (s2l b) (s2l exp)
+    _ -> Llet Lexical (getVar vars) (Llambda (tail (sconsToVarArr vars)) (s2l vals)) (s2l exp)
+
+s2l (Scons (Scons (Scons Snil (Ssym "dlet")) (Scons vars vals)) exp) =
+    case (Scons vars vals) of
+    (Scons Snil (Scons a b)) -> Llet Dynamic (getVar a) (s2l b) (s2l exp)
+    _ -> Llet Dynamic (getVar vars) (Llambda (tail (sconsToVarArr vars)) (s2l vals)) (s2l exp)
 
 -- Case
 s2l (Scons (Scons Snil (Ssym "case")) a) = Lcase (s2l a) []
@@ -265,7 +274,7 @@ s2l (Scons (Scons a b) c) =
 -- ajoute case to Lcase
     ((Lcase x y), (Scons u v)) -> Lcase x (y ++ ((getPat u), (s2l v)):[])
 -- appeler le lambda avec les bin params pour le Llet
-
+    ((Lvar f), _) -> Lapp (Lvar f) ((s2l c):[])
 
 s2l se = error ("Malformed Sexp: " ++ (showSexp se))
 
