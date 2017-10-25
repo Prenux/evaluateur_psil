@@ -238,7 +238,7 @@ s2l (Ssym s) = Lvar s
 s2l (Scons (Scons (Scons Snil (Ssym "slet")) (Scons vars vals)) exp) =
     case (Scons vars vals) of
     (Scons Snil (Scons a b)) -> Llet Lexical (getVar a) (Llambda (tail (sconsToVarArr a)) (s2l b)) (s2l exp)
---    (Scons Snil (Scons a b)) -> Llet Lexical (getVar a) (s2l b) (s2l exp)
+-- Multiple assignation
     (Scons (Scons a b) (Scons c d)) -> Llet Lexical (getVar vars) (Llambda (tail (sconsToVarArr vars)) (s2l vals)) (s2l exp)
 
 
@@ -247,7 +247,7 @@ s2l (Scons (Scons (Scons Snil (Ssym "slet")) (Scons vars vals)) exp) =
 s2l (Scons (Scons (Scons Snil (Ssym "dlet")) (Scons vars vals)) exp) =
     case (Scons vars vals) of
     (Scons Snil (Scons a b)) -> Llet Dynamic (getVar a) (Llambda (tail (sconsToVarArr a)) (s2l b)) (s2l exp)
---    (Scons Snil (Scons a b)) -> Llet Dynamic (getVar a) (s2l b) (s2l exp)
+--  Multiple assignatio
     _ -> Llet Dynamic (getVar vars) (Llambda (tail (sconsToVarArr vars)) (s2l vals)) (s2l exp)
 
 
