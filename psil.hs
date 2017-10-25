@@ -216,6 +216,13 @@ getVar (Scons Snil (Ssym a)) = a
 getVar (Scons Snil (Scons a b)) = getVar (Scons a b)
 getVar (Scons a b) = getVar a
 
+unsweetner :: Lexp -> Lexp
+unsweetner e = 
+    case e of
+    Lapp (Llambda var (Llambda [x] (exp))) args -> Lapp (Llambda (var ++ [x]) (exp)) args
+    (Lapp (Llambda var (Lapp f a)) args) -> e
+     
+
 -- Première passe simple qui analyse un Sexp et construit une Lexp équivalente.
 s2l :: Sexp -> Lexp
 s2l (Snum n) = Lnum n
@@ -244,7 +251,7 @@ s2l (Scons Snil a) =
         | b `elem` ["+","-","*","/","<=","<",">=",">","="] -> Lapp (Lvar b) []
         | b == "cons" -> Lcons "" []
         | otherwise -> Lvar b
-    (Llambda b c) -> Lapp (Llambda b c) []
+    (Llambda b c) -> unsweetner (Lapp (Llambda b c) [])
 -- Not sure if gusta for all case but worth a try
     (Lapp x y) -> Lapp x y
 
@@ -258,6 +265,7 @@ s2l (Scons (Scons a b) c) =
 -- ajoute case to Lcase
     ((Lcase x y), (Scons u v)) -> Lcase x (y ++ ((getPat u), (s2l v)):[])
 -- appeler le lambda avec les bin params pour le Llet
+
 
 s2l se = error ("Malformed Sexp: " ++ (showSexp se))
 
