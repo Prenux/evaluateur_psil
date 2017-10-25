@@ -20,13 +20,13 @@
 (slet ((x 1)) x)                        ; ↝ 1
 (dlet (((f x y) (* (+ x 1) y))) (f 5 6)) ; ↝ 36
 
-(slet (((curried+ x) (lambda (y) (+ x y)))
-       (x 7))
-  ((curried+ 5) 6))                     ; ↝ 11
+;(slet (((curried+ x) (lambda (y) (+ x y)))
+;       (x 7))
+;  ((curried+ 5) 6))                     ; ↝ 11
 
-(dlet (((curried+ x1) (dlet ((x x1)) (lambda (y) (+ x y))))
-       (x 7))
-  ((curried+ 5) 6))                     ; ↝ 13
+;(dlet (((curried+ x1) (dlet ((x x1)) (lambda (y) (+ x y))))
+;       (x 7))
+;  ((curried+ 5) 6))                     ; ↝ 13
 
 (dlet (((fact n)
         (if (<= n 1) n (* n (fact (- n 1))))))

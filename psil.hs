@@ -226,31 +226,46 @@ unsweetner e =
 
 -- Première passe simple qui analyse un Sexp et construit une Lexp équivalente.
 s2l :: Sexp -> Lexp
+
+
 s2l (Snum n) = Lnum n
+
+
 s2l (Ssym s) = Lvar s
+
 
 -- Slet pour une seule assignation
 s2l (Scons (Scons (Scons Snil (Ssym "slet")) (Scons vars vals)) exp) =
     case (Scons vars vals) of
-    (Scons Snil (Scons a b)) -> Llet Lexical (getVar a) (s2l b) (s2l exp)
-    _ -> Llet Lexical (getVar vars) (Llambda (tail (sconsToVarArr vars)) (s2l vals)) (s2l exp)
+    (Scons Snil (Scons a b)) -> Llet Lexical (getVar a) (Llambda (tail (sconsToVarArr a)) (s2l b)) (s2l exp)
+--    (Scons Snil (Scons a b)) -> Llet Lexical (getVar a) (s2l b) (s2l exp)
+    (Scons (Scons a b) (Scons c d)) -> Llet Lexical (getVar vars) (Llambda (tail (sconsToVarArr vars)) (s2l vals)) (s2l exp)
 
+
+
+-- Dlet pour une seule assignation
 s2l (Scons (Scons (Scons Snil (Ssym "dlet")) (Scons vars vals)) exp) =
     case (Scons vars vals) of
-    (Scons Snil (Scons a b)) -> Llet Dynamic (getVar a) (s2l b) (s2l exp)
+    (Scons Snil (Scons a b)) -> Llet Dynamic (getVar a) (Llambda (tail (sconsToVarArr a)) (s2l b)) (s2l exp)
+--    (Scons Snil (Scons a b)) -> Llet Dynamic (getVar a) (s2l b) (s2l exp)
     _ -> Llet Dynamic (getVar vars) (Llambda (tail (sconsToVarArr vars)) (s2l vals)) (s2l exp)
+
 
 -- Case
 s2l (Scons (Scons Snil (Ssym "case")) a) = Lcase (s2l a) []
 
+
 -- Generic lambda 
 s2l (Scons (Scons (Scons Snil (Ssym "lambda")) x) y) = Llambda (sconsToVarArr x) (s2l y)
+
 
 -- Cons
 s2l (Scons (Scons Snil (Ssym "cons")) (Ssym a)) = Lcons a []
 
+
 -- IF
 s2l (Scons (Scons (Scons (Scons Snil (Ssym "if")) test) x) y) = Lcase (s2l test) [(Just ("true",[]), (s2l x)),(Just ("false",[]),(s2l y))]
+
 
 -- Scons Snil a => sert seullement ajouter des parenthese autour
 s2l (Scons Snil a) =
@@ -264,6 +279,7 @@ s2l (Scons Snil a) =
 -- Not sure if gusta for all case but worth a try
     (Lapp x y) -> Lapp x y
 
+
 -- Scons Scons Sexp
 s2l (Scons (Scons a b) c) = 
     case (s2l (Scons a b), c) of
@@ -275,6 +291,7 @@ s2l (Scons (Scons a b) c) =
     ((Lcase x y), (Scons u v)) -> Lcase x (y ++ ((getPat u), (s2l v)):[])
 -- appeler le lambda avec les bin params pour le Llet
     ((Lvar f), _) -> Lapp (Lvar f) ((s2l c):[])
+
 
 s2l se = error ("Malformed Sexp: " ++ (showSexp se))
 
