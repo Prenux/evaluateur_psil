@@ -223,6 +223,9 @@ unsweetner e =
     Lapp (Llambda var (Llambda [x] (exp))) args -> Lapp (Llambda (var ++ [x]) (exp)) args
     _ -> e
      
+getDec :: (BindingType, Sexp) -> (Lexp -> Lexp)
+getDec (bind,(Scons Snil (Scons (Scons Snil (Ssym x)) (y)))) = Llet bind x (s2l y)
+getDec (bind, (Scons Snil (Scons fDec fCore))) = Llet bind (getVar fDec) (Llambda (tail (sconsToVarArr fDec)) (s2l fCore))
 
 -- Première passe simple qui analyse un Sexp et construit une Lexp équivalente.
 s2l :: Sexp -> Lexp
@@ -235,20 +238,14 @@ s2l (Ssym s) = Lvar s
 
 
 -- Slet pour une seule assignation
-s2l (Scons (Scons (Scons Snil (Ssym "slet")) (Scons vars vals)) exp) =
-    case (Scons vars vals) of
-    (Scons Snil (Scons a b)) -> Llet Lexical (getVar a) (Llambda (tail (sconsToVarArr a)) (s2l b)) (s2l exp)
+s2l (Scons (Scons (Scons Snil (Ssym "slet")) d) exp) = (getDec (Lexical, d)) (s2l exp)
 -- Multiple assignation
-    (Scons (Scons a b) (Scons c d)) -> Llet Lexical (getVar vars) (Llambda (tail (sconsToVarArr vars)) (s2l vals)) (s2l exp)
+--    (Scons (Scons a b) (Scons c d)) -> Llet Lexical (getVar vars) (Llambda (tail (sconsToVarArr vars)) (s2l vals)) (s2l exp)
 
 
 
 -- Dlet pour une seule assignation
-s2l (Scons (Scons (Scons Snil (Ssym "dlet")) (Scons vars vals)) exp) =
-    case (Scons vars vals) of
-    (Scons Snil (Scons a b)) -> Llet Dynamic (getVar a) (Llambda (tail (sconsToVarArr a)) (s2l b)) (s2l exp)
---  Multiple assignatio
-    _ -> Llet Dynamic (getVar vars) (Llambda (tail (sconsToVarArr vars)) (s2l vals)) (s2l exp)
+s2l (Scons (Scons (Scons Snil (Ssym "dlet")) d) exp) = (getDec (Dynamic, d)) (s2l exp)
 
 
 -- Case
@@ -348,44 +345,37 @@ env0 = let false = Vcons "false" []
 eval :: Env -> Env -> Lexp -> Value
 eval _senv _denv (Lnum n) = Vnum n
 
---évaluation d'une variable lorsqu'aucune déclaration dynamique n'est active
-eval _senv [] (Lvar x) =
-    case (lookup x _senv) of 
-    Nothing -> error "Variable not found"
-    (Just a) -> a
-
 eval _senv _denv (Lvar x) = 
 --évaluation d'une variable.
-    case (lookup x _denv) of
-    (Just a) -> a
+    case lookup x _denv of
+    Just _a -> _a
     Nothing ->
         case lookup x _senv of 
-        Nothing -> error "Variable not found"
-        Just a -> a
+        Nothing -> error ("Variable "++ (showSexp (Ssym x)) ++ " not found")
+        Just _a -> _a
 
 
 
 eval _senv _denv (Llambda vars exp) = 
---évaluation des lambda, pas encore complètement fonctionnel
+--évaluation des lambda
     let
-    varTags = (map Lvar vars)
-    args = (map (eval _senv _denv) varTags)
+    args = (map (eval _senv _denv) (map Lvar vars))
     in Vfun (length vars) (\env args -> eval ((zip vars args) ++ env) _denv exp)
 
 
 eval _senv _denv (Lapp op args) = 
---évaluation d'une fonction. Supporte uniquement les fonctions définies
---dans l'environnement statique présentement
-	let fCons = eval _senv _denv op
-	in case fCons of
-	Vfun a f -> if (a == (length args)) then f _senv (map (eval _senv _denv) args) 
-		else error ("incorrect number of arguments")
+--évaluation d'une fonction.
+    let fCons = eval _senv _denv op
+    in case fCons of
+    Vfun a f -> if (a == (length args)) 
+        then f _senv (map (eval _senv _denv) args) 
+        else error "incorrect number of arguments"
 
 eval _senv _denv (Lcons tag args) = Vcons tag (map (eval _senv _denv) args) 
 
 --si, lors de l'évaluation, on passe au travers de tous les patterns sans succès
---la liste des patterns est donc non-exhaustive donc on lace une erreur
-eval _senv _denv (Lcase test []) = error ("Can't eval: non-exhaustive patterns in case statement")
+--la liste des patterns est donc non-exhaustive donc on lance une erreur
+eval _senv _denv (Lcase test []) = error "Can't eval: non-exhaustive patterns in case statement"
 
 eval _senv _denv (Lcase test (x:xs)) = 
         let pattern = eval _senv _denv test
