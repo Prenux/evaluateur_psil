@@ -221,48 +221,40 @@ unsweetner :: Lexp -> Lexp
 unsweetner e = 
     case e of
     Lapp (Llambda var (Llambda [x] (exp))) args -> Lapp (Llambda (var ++ [x]) (exp)) args
+    Llambda var (Llambda [x] (exp)) -> Llambda (var ++ [x]) exp
     _ -> e
      
 getDec :: (BindingType, Sexp) -> (Lexp -> Lexp)
 getDec (bind,(Scons Snil (Scons (Scons Snil (Ssym x)) (y)))) = Llet bind x (s2l y)
-getDec (bind, (Scons Snil (Scons fDec fCore))) = Llet bind (getVar fDec) (Llambda (tail (sconsToVarArr fDec)) (s2l fCore))
+getDec (bind, (Scons Snil (Scons fDec fCore))) = Llet bind (getVar fDec) (unsweetner(Llambda (tail (sconsToVarArr fDec)) (s2l fCore)))
+getDec (bind, (Scons (Scons Snil (Ssym x)) (Snum y))) = Llet bind x (s2l (Snum y))
+getDec (bind, (Scons (Scons Snil (Ssym x)) (Ssym y))) = Llet bind x (s2l (Ssym y))
+getDec (bind, (Scons a b)) = (getDec (bind, a)) . (getDec (bind, b))
+getDec (bind, (Scons (Scons Snil (Ssym "slet")) d)) = (getDec (Lexical, d))
+getDec (bind, (Scons (Scons Snil (Ssym "dlet")) d)) = (getDec (Dynamic, d))
 
 -- Première passe simple qui analyse un Sexp et construit une Lexp équivalente.
 s2l :: Sexp -> Lexp
-
-
 s2l (Snum n) = Lnum n
-
-
 s2l (Ssym s) = Lvar s
-
 
 -- Slet pour une seule assignation
 s2l (Scons (Scons (Scons Snil (Ssym "slet")) d) exp) = (getDec (Lexical, d)) (s2l exp)
--- Multiple assignation
---    (Scons (Scons a b) (Scons c d)) -> Llet Lexical (getVar vars) (Llambda (tail (sconsToVarArr vars)) (s2l vals)) (s2l exp)
-
-
 
 -- Dlet pour une seule assignation
 s2l (Scons (Scons (Scons Snil (Ssym "dlet")) d) exp) = (getDec (Dynamic, d)) (s2l exp)
 
-
 -- Case
 s2l (Scons (Scons Snil (Ssym "case")) a) = Lcase (s2l a) []
-
 
 -- Generic lambda 
 s2l (Scons (Scons (Scons Snil (Ssym "lambda")) x) y) = Llambda (sconsToVarArr x) (s2l y)
 
-
 -- Cons
 s2l (Scons (Scons Snil (Ssym "cons")) (Ssym a)) = Lcons a []
 
-
 -- IF
 s2l (Scons (Scons (Scons (Scons Snil (Ssym "if")) test) x) y) = Lcase (s2l test) [(Just ("true",[]), (s2l x)),(Just ("false",[]),(s2l y))]
-
 
 -- Scons Snil a => sert seullement ajouter des parenthese autour
 s2l (Scons Snil a) =
@@ -274,8 +266,8 @@ s2l (Scons Snil a) =
         | otherwise -> Lvar b
     (Llambda b c) -> unsweetner (Lapp (Llambda b c) [])
 -- Not sure if gusta for all case but worth a try
-    (Lapp x y) -> Lapp x y
-
+--    (Lapp x y) -> Lapp x y
+    (Lapp x y) -> Lapp (Lapp x y) []
 
 -- Scons Scons Sexp
 s2l (Scons (Scons a b) c) = 
@@ -286,7 +278,7 @@ s2l (Scons (Scons a b) c) =
     ((Lcons x y), _) -> Lcons x (y ++ (s2l c):[])
 -- ajoute case to Lcase
     ((Lcase x y), (Scons u v)) -> Lcase x (y ++ ((getPat u), (s2l v)):[])
--- appeler le lambda avec les bin params pour le Llet
+-- appeler le lambda avec les bons params pour le Llet
     ((Lvar f), _) -> Lapp (Lvar f) ((s2l c):[])
 
 
@@ -367,9 +359,10 @@ eval _senv _denv (Lapp op args) =
 --évaluation d'une fonction.
     let fCons = eval _senv _denv op
     in case fCons of
-    Vfun a f -> if (a == (length args)) 
-        then f _senv (map (eval _senv _denv) args) 
-        else error "incorrect number of arguments"
+    Vfun a f -> f _senv (map (eval _senv _denv) args) 
+--        if (a == (length args)) 
+--        then f _senv (map (eval _senv _denv) args) 
+--        else error "incorrect number of arguments"
 
 eval _senv _denv (Lcons tag args) = Vcons tag (map (eval _senv _denv) args) 
 

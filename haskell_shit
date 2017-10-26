@@ -180,3 +180,113 @@ Scons (
                 (Ssym "f"))
             (Snum 5))
         (Snum 6))
+
+
+Scons (
+    Scons
+        (Scons
+            Snil
+            (Ssym "dlet"))
+        (Scons 
+            Snil
+            (Scons
+                (Scons
+                    Snil
+                    (Scons
+                        (Scons
+                            (Scons
+                                Snil
+                                (Ssym "f"))
+                            (Ssym "x"))
+                        (Ssym "y")))
+                (Scons
+                    (Scons
+                        (Scons
+                            Snil
+                            (Ssym "+"))
+                        (Ssym "x"))
+                    (Ssym "y")))))
+    (Scons
+        (Scons
+            (Scons
+                Snil
+                (Ssym "f"))
+            (Snum 5))
+        (Snum 6))
+
+
+Scons (
+    Scons (
+        Scons
+            Snil
+            (Ssym "dlet"))
+        (Scons
+            (Scons
+                Snil
+                (Scons
+                    (Scons
+                        Snil
+                        (Scons
+                            (Scons
+                                Snil
+                                (Ssym "curried+"))
+                            (Ssym "x1")))
+                    (Scons
+                        (Scons
+                            (Scons
+                                Snil
+                                (Ssym "dlet"))
+                            (Scons
+                                Snil
+                                (Scons
+                                    (Scons
+                                        Snil
+                                        (Ssym "x"))
+                                    (Ssym "x1"))))
+                        (Scons
+                            (Scons
+                                (Scons
+                                    Snil
+                                    (Ssym "lambda"))
+                                (Scons
+                                    Snil
+                                    (Ssym "y")))
+                            (Scons
+                                (Scons
+                                    (Scons
+                                        Snil
+                                        (Ssym "+"))
+                                    (Ssym "x"))
+                                (Ssym "y"))))))
+            (Scons
+                (Scons
+                    Snil
+                    (Ssym "x"))
+                (Snum 7))))
+    (Scons (Scons Snil (Scons (Scons Snil (Ssym "curried+")) (Snum 5))) (Snum 6))
+
+Llet 
+    Dynamic 
+    "curried+" 
+    (Llambda 
+        ["x1"]
+        (Llet 
+            Dynamic 
+            "x"
+            (Lvar "x1")
+            (Llambda 
+                ["y"]
+                (Lapp
+                    (Lvar"+")
+                    [Lvar "x",Lvar "y"]))))
+    (Llet 
+        Dynamic
+        "x"
+        (Lnum 7)
+        (Lapp
+            (Lapp
+                (Lvar "curried+")
+                [Lnum 5])
+            [Lnum 6]))
+
+
