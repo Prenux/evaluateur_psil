@@ -220,8 +220,8 @@ getVar (Scons a b) = getVar a
 unsweetner :: Lexp -> Lexp
 unsweetner e = 
     case e of
-    Lapp (Llambda var (Llambda [x] (exp))) args -> 
-        Lapp (Llambda (var ++ [x]) (exp)) args
+--    Lapp (Llambda var (Llambda [x] (exp))) args -> 
+--        Lapp (Llambda (var ++ [x]) (exp)) args
     Llambda var (Llambda [x] (exp)) -> Llambda (var ++ [x]) exp
     _ -> e
      
@@ -229,10 +229,7 @@ getDec :: (BindingType, Sexp) -> (Lexp -> Lexp)
 getDec (bind,(Scons Snil (Scons (Scons Snil (Ssym x)) (y)))) = 
     Llet bind x (s2l y)
 getDec (bind, (Scons Snil (Scons fDec fCore))) = 
-    case (getVar fCore) of
-    ("lambda") -> Llet bind (getVar fDec) (s2l fCore)
-    _ -> Llet bind (getVar fDec) 
-        (unsweetner(Llambda (tail (sconsToVarArr fDec)) (s2l fCore)))
+    Llet bind (getVar fDec) (Llambda (tail (sconsToVarArr fDec)) (s2l fCore))
 getDec (bind, (Scons (Scons Snil (Ssym x)) (Snum y))) = 
     Llet bind x (s2l (Snum y))
 getDec (bind, (Scons (Scons Snil (Ssym x)) (Ssym y))) = 
@@ -259,7 +256,7 @@ s2l (Scons (Scons Snil (Ssym "case")) a) = Lcase (s2l a) []
 
 -- Generic lambda 
 s2l (Scons (Scons (Scons Snil (Ssym "lambda")) x) y) = 
-    Llambda (sconsToVarArr x) (s2l y)
+    unsweetner(Llambda (sconsToVarArr x) (s2l y))
 
 -- Cons
 s2l (Scons (Scons Snil (Ssym "cons")) (Ssym a)) = Lcons a []
