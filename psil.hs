@@ -222,7 +222,7 @@ unsweetner e =
     case e of
 --    Lapp (Llambda var (Llambda [x] (exp))) args -> 
 --        Lapp (Llambda (var ++ [x]) (exp)) args
-    Llambda var (Llambda [x] (exp)) -> Llambda (var ++ [x]) exp
+    Llambda var (Llambda [x] (exp)) -> unsweetner(Llambda (var ++ [x]) exp)
     _ -> e
      
 getDec :: (BindingType, Sexp) -> (Lexp -> Lexp)
@@ -345,18 +345,23 @@ env0 = let false = Vcons "false" []
 ---------------------------------------------------------------------------
 
 eval :: Env -> Env -> Lexp -> Value
+
 eval _senv _denv (Lnum n) = Vnum n
+
+eval _senv [] (Lvar x) = 
+--évaluation d'une variable en l'absence de déclarations dynamiques
+    case lookup x _senv of
+    Just _a -> _a
+    Nothing -> error ("Variable "++ (showSexp (Ssym x)) ++ " not found")
 
 eval _senv _denv (Lvar x) = 
 --évaluation d'une variable.
-    case lookup x _denv of
+    case lookup x _senv of
     Just _a -> _a
     Nothing ->
-        case lookup x _senv of 
+        case lookup x _denv of 
         Nothing -> error ("Variable "++ (showSexp (Ssym x)) ++ " not found")
         Just _a -> _a
-
-
 
 eval _senv _denv (Llambda vars exp) = 
 --évaluation des lambda
@@ -369,10 +374,10 @@ eval _senv _denv (Lapp op args) =
 --évaluation d'une fonction.
     let fCons = eval _senv _denv op
     in case fCons of
-    Vfun a f -> f _senv (map (eval _senv _denv) args) 
---        if (a == (length args)) 
---        then f _senv (map (eval _senv _denv) args) 
---        else error "incorrect number of arguments"
+    Vfun a f ->  
+        if (a == (length args)) 
+        then f (_denv ++ _senv) (map (eval _senv _denv) args) 
+        else error "incorrect number of arguments"
 
 eval _senv _denv (Lcons tag args) = Vcons tag (map (eval _senv _denv) args) 
 
@@ -384,11 +389,10 @@ eval _senv _denv (Lcase test []) =
 eval _senv _denv (Lcase test (x:xs)) = 
         let pattern = eval _senv _denv test
         in case (pattern, fst x) of
---si le pattern est "_", on peut assumer que c'est le catch-all case, donc
---on évalue l'expression associée dès qu'on l'atteint
+--si le pattern est "_", c'est le catch-all case.
         (Vcons tag vals, Just ("_",_)) -> eval _senv _denv (snd x)
---si le tag et le nombre de valeurs sont conformes, on assume qu'on a trouvé le
---pattern recherché, donc on evalue l'expression associée à ce pattern
+--si le tag et le nombre de valeurs sont conformes, on a trouvé le
+--pattern recherché
         (Vcons tag vals, Just (tag2, vars)) -> if (tag == tag2) && 
             ((length vals) == (length vars)) 
             then eval ((zip vars vals) ++ _senv) _denv (snd x) 
@@ -396,7 +400,9 @@ eval _senv _denv (Lcase test (x:xs)) =
 
 eval _senv _denv (Llet bind var val exp) =
         case bind of
-        Lexical -> eval ((var,(eval _senv _denv val)):_senv) _denv exp
+        Lexical -> case lookup var _senv of
+            Nothing -> eval ((var,(eval _senv _denv val)):_senv) _denv exp
+            Just _a -> eval (_senv ++ [(var,(eval _senv _denv val))]) _denv exp
         Dynamic -> eval _senv ((var,(eval _senv _denv val)):_denv) exp
 
 eval _ _ e = error ("Can't eval: " ++ show e)
