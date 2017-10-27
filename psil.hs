@@ -182,6 +182,7 @@ showSexp e = showSexp' e ""
 -- Représentation intermédiaire L(ambda)exp(ression)                     --
 ---------------------------------------------------------------------------
 
+
 type Var = String
 type Tag = String
 type Pat = Maybe (Tag, [Var])
@@ -197,104 +198,146 @@ data Lexp = Lnum Int            -- Constante entière.
           | Llet BindingType Var Lexp Lexp -- Déclaration de variable locale
           deriving (Show, Eq)
 
-sconsToVarArr :: Sexp -> [Var]
-sconsToVarArr (Scons Snil (Ssym x)) = [x]
-sconsToVarArr (Scons (Scons a b) (Ssym x)) = (sconsToVarArr (Scons a b)) ++ [x]
-sconsToVarArr (Scons Snil (Scons a b)) = (sconsToVarArr (Scons a b))
-
-getPat :: Sexp -> Pat
--- Not sure if gusta all the time... (i.e. : (Lapp (Llamba x y) z))
-getPat (Scons Snil (Scons a b)) = (getPat (Scons a b))
--- got label, so create pattern
-getPat (Scons Snil (Ssym a)) = Just (a,[])
--- label will be in the Scons, so append Ssym to [Var]
-getPat (Scons (Scons a b) (Ssym c)) = 
-    case (getPat (Scons a b)) of
-    (Just (a,b)) -> Just (a,(b ++ c:[]))
-
-getVar :: Sexp -> Var
-getVar (Scons Snil (Ssym a)) = a
-getVar (Scons Snil (Scons a b)) = getVar (Scons a b)
-getVar (Scons a b) = getVar a
-
-unsweetner :: Lexp -> Lexp
-unsweetner e = 
-    case e of
-    Lapp (Llambda var (Llambda [x] (exp))) args -> 
-        Lapp (Llambda (var ++ [x]) (exp)) args
-    Llambda var (Llambda [x] (exp)) -> Llambda (var ++ [x]) exp
-    _ -> e
-     
-getDec :: (BindingType, Sexp) -> (Lexp -> Lexp)
-getDec (bind,(Scons Snil (Scons (Scons Snil (Ssym x)) (y)))) = 
-    Llet bind x (s2l y)
-getDec (bind, (Scons Snil (Scons fDec fCore))) = 
-    case (getVar fCore) of
-    ("lambda") -> Llet bind (getVar fDec) (s2l fCore)
-    _ -> Llet bind (getVar fDec) 
-        (unsweetner(Llambda (tail (sconsToVarArr fDec)) (s2l fCore)))
-getDec (bind, (Scons (Scons Snil (Ssym x)) (Snum y))) = 
-    Llet bind x (s2l (Snum y))
-getDec (bind, (Scons (Scons Snil (Ssym x)) (Ssym y))) = 
-    Llet bind x (s2l (Ssym y))
-getDec (bind, (Scons a b)) = (getDec (bind, a)) . (getDec (bind, b))
-getDec (bind, (Scons (Scons Snil (Ssym "slet")) d)) = (getDec (Lexical, d))
-getDec (bind, (Scons (Scons Snil (Ssym "dlet")) d)) = (getDec (Dynamic, d))
+-- Special function for "Case" : Detects and defines a list without the need
+-- for a constructor tag (cons)
+casetagreader :: Sexp -> Lexp
+casetagreader (Scons Snil (Ssym s)) = Lcons s []
+casetagreader (Scons rest var) = case casetagreader rest of
+    Lcons tag undervars -> Lcons tag (undervars ++ [(s2l var)])
+    _ -> error ("Not a tagged list")
+casetagreader (Ssym "_") = Lvar "_"
+casetagreader _ = error ("Not a tagged list or default branching indicator")
 
 -- Première passe simple qui analyse un Sexp et construit une Lexp équivalente.
 s2l :: Sexp -> Lexp
 s2l (Snum n) = Lnum n
 s2l (Ssym s) = Lvar s
 
--- Slet pour une seule assignation
-s2l (Scons (Scons (Scons Snil (Ssym "slet")) d) exp) = 
-    (getDec (Lexical, d)) (s2l exp)
+-- Single function static declaration
+s2l (Scons (Scons (Scons Snil (Ssym "slet")) 
+         (Scons Snil (Scons (Scons Snil (Ssym s))
+         (Scons (Scons (Scons Snil (Ssym "lambda")) args) lambfunc)))) func) =
+    let lambdas2l = 
+            s2l (Scons (Scons (Scons Snil (Ssym "lambda")) args) lambfunc)
+    in Llet Lexical s (lambdas2l) (s2l func)
 
--- Dlet pour une seule assignation
-s2l (Scons (Scons (Scons Snil (Ssym "dlet")) d) exp) = 
-    (getDec (Dynamic, d)) (s2l exp)
+-- Single function dynamic declaration
+s2l (Scons (Scons (Scons Snil (Ssym "dlet")) 
+         (Scons Snil (Scons (Scons Snil (Ssym s))
+         (Scons (Scons (Scons Snil (Ssym "lambda")) args) lambfunc)))) func) =
+    let lambdas2l = 
+            s2l (Scons (Scons (Scons Snil (Ssym "lambda")) args) lambfunc)
+    in Llet Dynamic s (lambdas2l) (s2l func)
 
--- Case
-s2l (Scons (Scons Snil (Ssym "case")) a) = Lcase (s2l a) []
+-- Single variable static declaration
+s2l (Scons (Scons (Scons Snil (Ssym "slet")) 
+         (Scons Snil (Scons (Scons Snil (Ssym s)) (def)))) (func)) =
+    Llet Lexical s (s2l def) (s2l func)
 
--- Generic lambda 
-s2l (Scons (Scons (Scons Snil (Ssym "lambda")) x) y) = 
-    Llambda (sconsToVarArr x) (s2l y)
+-- Single variable dynamic declaration
+s2l (Scons (Scons (Scons Snil (Ssym "dlet")) 
+         (Scons Snil (Scons (Scons Snil (Ssym s)) (def)))) (func)) =
+    Llet Dynamic s (s2l def) (s2l func)
 
--- Cons
-s2l (Scons (Scons Snil (Ssym "cons")) (Ssym a)) = Lcons a []
+-- Sugary version of single variable static declaration
+s2l (Scons (Scons (Scons Snil (Ssym "slet")) 
+         (Scons Snil (Scons (Scons Snil (sugardec)) sugarfunc))) func) =
+    let Lapp symf args = s2l sugardec
+        translvar (Lvar x) = x
+        translvar _ = error ("Not a variable")
+        lambdafunc = Llambda (map translvar args) (s2l sugarfunc)
+    in Llet Lexical (translvar symf) lambdafunc (s2l func)
 
--- IF
-s2l (Scons (Scons (Scons (Scons Snil (Ssym "if")) test) x) y) =
-    Lcase (s2l test) [(Just ("true",[]), (s2l x)),(Just ("false",[]),(s2l y))]
-
--- Scons Snil a => sert seullement ajouter des parenthese autour
-s2l (Scons Snil a) =
-    case (s2l a) of
-    (Lvar b)
--- appel de function, on rajoutera les args en remontant l'arbre
-        | b `elem` ["+","-","*","/","<=","<",">=",">","="] -> Lapp (Lvar b) []
-        | b == "cons" -> Lcons "" []
-        | otherwise -> Lvar b
-    (Llambda b c) -> unsweetner (Lapp (Llambda b c) [])
-    (Lapp x y) -> 
-        case x of 
-            (Llambda u v) -> Lapp x y
-            _ -> Lapp (Lapp x y) []
-
--- Scons Scons Sexp
-s2l (Scons (Scons a b) c) = 
-    case (s2l (Scons a b), c) of
--- ajoute args a Lapp 
-    ((Lapp x y), _) -> Lapp x (y ++ (s2l c):[])
--- ajoute args au cons
-    ((Lcons x y), _) -> Lcons x (y ++ (s2l c):[])
--- ajoute case to Lcase
-    ((Lcase x y), (Scons u v)) -> Lcase x (y ++ ((getPat u), (s2l v)):[])
--- appeler le lambda avec les bons params pour le Llet
-    ((Lvar f), _) -> Lapp (Lvar f) ((s2l c):[])
+-- Sugary version of single variable dynamic declaration
+s2l (Scons (Scons (Scons Snil (Ssym "dlet")) 
+         (Scons Snil (Scons (Scons Snil (sugardec)) sugarfunc))) func) =
+    let Lapp symf args = s2l sugardec
+        translvar (Lvar x) = x
+        translvar _ = error ("Not a variable")
+        lambdafunc = Llambda (map translvar args) (s2l sugarfunc)
+    in Llet Dynamic (translvar symf) lambdafunc (s2l func)
 
 
+-- Multiple variable static declaration
+s2l (Scons (Scons (Scons Snil (Ssym "dlet"))
+         (Scons (undercond) lastdef)) func) =
+    --let underlet = 
+      --      s2l (Scons (Scons (Scons Snil (Ssym "dlet")) undercond) func)
+    s2l (Scons (Scons (Scons Snil (Ssym "dlet")) undercond)
+        (Scons (Scons (Scons Snil (Ssym "dlet")) (Scons Snil lastdef)) func))
+
+-- Multiple variable dynamic declaration
+s2l (Scons (Scons (Scons Snil (Ssym "slet"))
+         (Scons (undercond) (lastdef))) func) =
+    s2l (Scons (Scons (Scons Snil (Ssym "slet")) undercond)
+        (Scons (Scons (Scons Snil (Ssym "slet")) (Scons Snil lastdef)) func))
+
+
+-- Sugary version of case (if) -- Needs to be given true and false choices
+s2l (Scons (Scons (Scons (Scons Snil (Ssym "if")) (condit)) (a)) (b)) =
+    s2l (Scons (Scons (Scons (Scons Snil (Ssym "case")) (condit))
+            (Scons (Scons Snil (Scons Snil (Ssym "true"))) (a))) 
+            (Scons (Scons Snil (Scons Snil (Ssym "false"))) (b)))
+
+-- Case formula with one possibility
+-- "_" represents a default case and should be written last
+s2l (Scons (Scons (Scons Snil (Ssym "case")) (searched)) 
+             (Scons (Scons Snil (verif)) (func))) = case casetagreader verif of
+        Lcons constverif varverif ->
+            let remlvar (Lvar x) = x
+                remlvar _ = error ("Not variable names...")
+                varlist = map (remlvar) varverif
+            in  Lcase (s2l searched) [(Just (constverif, varlist), s2l func)]
+        Lvar "_" -> Lcase (s2l searched) [(Nothing, s2l func)]
+        _ -> error ("Malformed case")
+
+
+-- Empty list construction (empty list)
+s2l (Scons (Scons Snil (Ssym "cons")) (Ssym name)) =
+    Lcons name []
+
+-- Base case for a lambda function (one variable)
+s2l (Scons (Scons (Scons Snil (Ssym "lambda")) (Scons Snil (Ssym x))) (y)) =
+    let Lvar varx = s2l (Ssym x)
+    in Llambda [varx] (s2l y)
+
+-- Lambda function with multiple cariables
+s2l (Scons (Scons (Scons Snil (Ssym "lambda")) 
+                                 (Scons (x) (y))) (func)) =
+    let Llambda a _ = (s2l (Scons (Scons (Scons Snil (Ssym "lambda")) 
+                                                            (x)) (func)))
+        Lvar vary = (s2l y)
+        arglist = (a ++ [vary])
+    in Llambda arglist (s2l func)
+
+-- Calling a function given one value
+s2l (Scons (Scons Snil lambdafunc) val) = --case s2l val of
+    Lapp (s2l lambdafunc) [s2l val]
+
+-- Some special cases...
+s2l (Scons (restapp) val) = case s2l restapp of
+    -- Calling a function given multiple values
+    Lapp underfunc underval -> 
+        Lapp underfunc (underval ++ [s2l val])
+    -- Multiple values structure
+    Lcons name underval -> Lcons name (underval ++ [s2l val])
+    -- Multi "Case"
+    Lcase underexp underlist -> 
+        let (Scons (Scons Snil (verif)) (func)) = val
+        in  case casetagreader verif of
+            Lcons constverif varverif -> 
+                -- Detecting variables
+                let remlvar (Lvar x) = x
+                    remlvar _ = error ("Not variable names...")
+                    varlist = map (remlvar) varverif
+                in  Lcase underexp (underlist ++ 
+                                [(Just (constverif, varlist), s2l func)])
+            -- Default case
+            Lvar "_" -> Lcase underexp (underlist ++ [(Nothing, s2l func)])
+            _ -> error ("Malformed case")
+    _ -> error ("Operation undefined")
+
+-- ¡¡ COMPLETER !!
 s2l se = error ("Malformed Sexp: " ++ (showSexp se))
 
 ---------------------------------------------------------------------------
@@ -305,17 +348,20 @@ type Arity = Int
 
 -- Type des valeurs manipulée à l'exécution.
 data Value = Vnum Int
+           | Vvar Var -- Used for transfer of variables in lambda evaluation
            | Vcons Tag [Value]
-           | Vfun Arity (Env -> [Value] -> Value)
+           | Vfun Arity Env [Var] (Env -> [Value] -> Value)
+           -- Env is added for closure and Var for passing of variables
 
 instance Show Value where
     showsPrec p (Vnum n) = showsPrec p n
+    showsPrec p (Vvar n) = showsPrec p n
     showsPrec p (Vcons tag vs) =
         let showTail [] = showChar ']'
             showTail (v : vs') =
                 showChar ' ' . showsPrec p v . showTail vs'
         in showChar '[' . showString tag . showTail vs
-    showsPrec _ (Vfun arity _)
+    showsPrec _ (Vfun arity _ _ _)
         = showString ("<" ++ show arity ++ "-args-function>")
 
 type Env = [(Var, Value)]
@@ -325,9 +371,9 @@ env0 :: Env
 env0 = let false = Vcons "false" []
            true = Vcons "true" []
            mkbop (name, op) =
-               (name, Vfun 2 (\ _ [Vnum x, Vnum y] -> Vnum (x `op` y)))
+               (name, Vfun 2 [] [] (\ _ [Vnum x, Vnum y] -> Vnum (x `op` y)))
            mkcmp (name, op) =
-               (name, Vfun 2 (\ _ [Vnum x, Vnum y]
+               (name, Vfun 2 [] [] (\ _ [Vnum x, Vnum y]
                                   -> if x `op` y then true else false))
        in [("false", false),
            ("true", true)]
@@ -350,59 +396,180 @@ env0 = let false = Vcons "false" []
 eval :: Env -> Env -> Lexp -> Value
 eval _senv _denv (Lnum n) = Vnum n
 
-eval _senv _denv (Lvar x) = 
---évaluation d'une variable.
-    case lookup x _denv of
-    Just _a -> _a
-    Nothing ->
-        case lookup x _senv of 
-        Nothing -> error ("Variable "++ (showSexp (Ssym x)) ++ " not found")
-        Just _a -> _a
+-- Multiple calls in a row
+eval _senv _denv (Lapp (Lapp func valx) valy) =
+    eval _senv _denv (Lapp func (valx ++ valy))
+
+-- Lambda function composition
+eval _senv _denv (Llambda varx (Llambda vary func)) =
+    -- Might create unwanted duplicates...
+    let removedup [] = []
+        removedup (a : arest) = (a : (removedup (filter (/= a) arest)))
+    in eval _senv _denv (Llambda (removedup (varx ++ vary)) func)
+
+-- Call of a lambda function composition
+eval _senv _denv (Lapp (Llambda varx (Llambda vary func)) vals) =
+    let removedup [] = []
+        removedup (a : arest) = (a : (removedup (filter (/= a) arest)))
+    in eval _senv _denv (Lapp (Llambda (removedup (varx ++ vary)) func) vals)
+
+-- Declarations of variables and functions
+eval senvx denvx (Llet lexDyn expr (def) (func)) = case lexDyn of
+    Dynamic -> case lookup expr denvx of
+      Nothing ->
+        let 
+            _denv = [(expr, eval _senv _denv def)] ++ denvx
+            _senv = senvx
+        in eval _senv _denv func
+      Just _ ->
+        let 
+            filtenv :: Var -> Env -> Env
+            filtenv _ [] = []
+            filtenv a ((b, bval) : brest) = 
+                if a == b then filtenv a brest
+                else [(b, bval)] ++ filtenv a brest
+            denvxtemp = filtenv expr denvx
+            _denv = [(expr, eval senvx denvx def)] ++ denvxtemp
+            _senv = filtenv expr senvx
+        in eval _senv _denv func
+    Lexical -> 
+        let 
+            _senv = [(expr, eval senvx denvx def)] ++ senvx
+            _denv = denvx
+        in eval _senv _denv func
+
+-- Special function call where the function has no variable
+eval _senv _denv (Lapp (Lnum x) _ ) = Vnum x
+
+-- Evaluating a declared function or variable
+eval _senv _denv (Lvar x) = case lookup x _senv of
+    Nothing -> case lookup x _denv of
+        Nothing -> Vvar x  
+        Just y -> y
+    Just y -> y
+
+-- Evaluation of a lambda function call
+eval senv denv (Lapp (Llambda vars lambdafunc) vals) =
+    -- Right number of arguments given...
+    if (length vars) == (length vals) then
+        let valsprep = map (eval senv denv) vals
+            -- Combines variables with corresponding values
+            comb [] [] = []
+            comb (x : xrest) (y : yrest) = [(x, y)] ++ comb xrest yrest
+            comb _ _ = []
+            combenv = comb vars valsprep ++ senv
+            newdenv = denv
+        in eval combenv newdenv lambdafunc
+    else 
+        -- Not enough arguments given (superior order functions)
+        if (length vars) > (length vals) then
+            let valsprep = map (eval senv denv) vals
+                comb [] [] = []
+                comb (x : xrest) (y : yrest) = [(x, y)] ++ comb xrest yrest
+                comb _ _ = []
+                combenv = comb vars valsprep ++ senv
+                newdenv = denv
+                -- Separates remaining unknown variables
+                restvar [] rest = rest
+                restvar (_ : arest) (_ : brest) = restvar arest brest
+                restvar _ _ = []
+            in eval combenv newdenv
+                    (Llambda (restvar vals vars) lambdafunc)
+        else -- Too many arguments are given to a function...
+            error (show lambdafunc) 
+
+-- Function call made on a variable (non-lambda)
+eval senv denv (Lapp (Lvar s) vals) = case eval senv denv (Lvar s) of
+  Vfun _ envf vars func -> 
+    let valsprep = map (eval senv denv) vals
+        comb [] [] = []
+        comb (a : arest) (b : brest) = [(a, b)] ++ (comb arest brest)
+        comb _ _ = []
+        newenv = comb vars valsprep
+             -- No variables : Special case for predefined functions...
+    in  if length vars == 0 then func (denv) valsprep
+        else 
+            -- Some unknown variables found...
+            -- We only take the values that are needed
+            let 
+                restval rest [] = rest
+                restval (_ : arest) (_ : brest) = restval arest brest
+                restval _ _ = []
+            in  func (newenv ++ envf ++ denv) (restval valsprep vars)
+  -- Special case where the value found is already numerical
+  Vnum x -> Vnum x
+  _ -> error ("   ")
+
+-- Special case : function call in front of a declaration
+eval _senv _denv (Lapp (Llet dynlex var def func) val) =
+    eval _senv _denv (Llet dynlex var def (Lapp func val))
+
+-- Evaluating other function calls (Lcons / Lcase)
+eval _senv _denv (Lapp (underfunc) vals) = case eval _senv _denv underfunc of
+    Vfun nb envf vars func -> 
+        -- Regular case
+        if (length vals) == nb then 
+            let valsprep = map (eval _senv _denv) vals
+                comb [] [] = []
+                comb (a : arest) (b : brest) = [(a, b)] ++ (comb arest brest)
+                comb _ _ = []
+                newenv = comb vars valsprep
+            in func (newenv ++ envf ++ _denv) valsprep 
+        else 
+            -- Too many arguments are given to a function
+            if (length vals) > nb then 
+                error ("Too many arguments were given to a function")
+            else
+                -- Too few arguments are given to a function
+                error ("Not enough arguments were given to a function")
+    Vnum x -> Vnum x
+    _ -> error ("Not a function")
+
+-- Evaluation of a "Case"
+eval _senv _denv (Lcase (searched) explist) = 
+        -- Has to be made on a structure
+    let Vcons searchedtag vallist = eval _senv _denv searched 
+    in 
+        case explist of
+            -- Develops list of possibilities
+            ((verify, func) : rest) -> 
+                case verify of
+                    -- Special default case (_)
+                    Nothing -> eval _senv _denv func
+                    -- Otherwise comparing...
+                    Just (tag, vars) -> 
+                        if tag == searchedtag then
+                            -- Found a match... We assign values to variables
+                            if length vallist == 0 then
+                                eval _senv _denv func
+                            else 
+                                let comb [] [] = []
+                                    comb (a : []) (b : []) = [(a, b)]
+                                    comb (a : arest) (b : brest) = 
+                                               [(a, b)] ++ comb arest brest
+                                    comb _ _ = []
+                                    newsenv = (comb vars vallist) ++ _senv
+                                in eval newsenv _denv func
+                        -- Not a match... We look further in the list
+                        else eval _senv _denv (Lcase (searched) rest) 
+            _ -> error (show explist)
+
+-- Evaluation a lambda function
+eval _senv _denv (Llambda vars func) = 
+    let nb = length vars
+        -- Transforms values to be assigned
+        transval (Vnum x) = Lnum x
+        transval _ = error ("Non numeric arguments given")
+    -- We use a Lapp in case we want to assign values later
+    in Vfun nb _senv vars (\ newenv vals -> (eval newenv _denv
+                                         (Lapp func (map transval vals))))
+
+-- Evaluating a structure
+eval _senv _denv (Lcons name vals) = Vcons name (map (eval _senv _denv) vals)
 
 
-
-eval _senv _denv (Llambda vars exp) = 
---évaluation des lambda
-    let
-    args = (map (eval _senv _denv) (map Lvar vars))
-    in Vfun (length vars) (\env args -> eval ((zip vars args) ++ env) _denv exp)
-
-
-eval _senv _denv (Lapp op args) = 
---évaluation d'une fonction.
-    let fCons = eval _senv _denv op
-    in case fCons of
-    Vfun a f -> f _senv (map (eval _senv _denv) args) 
---        if (a == (length args)) 
---        then f _senv (map (eval _senv _denv) args) 
---        else error "incorrect number of arguments"
-
-eval _senv _denv (Lcons tag args) = Vcons tag (map (eval _senv _denv) args) 
-
---si, lors de l'évaluation, on passe au travers de tous les patterns sans succès
---la liste des patterns est donc non-exhaustive donc on lance une erreur
-eval _senv _denv (Lcase test []) = 
-    error "Can't eval: non-exhaustive patterns in case statement"
-
-eval _senv _denv (Lcase test (x:xs)) = 
-        let pattern = eval _senv _denv test
-        in case (pattern, fst x) of
---si le pattern est "_", on peut assumer que c'est le catch-all case, donc
---on évalue l'expression associée dès qu'on l'atteint
-        (Vcons tag vals, Just ("_",_)) -> eval _senv _denv (snd x)
---si le tag et le nombre de valeurs sont conformes, on assume qu'on a trouvé le
---pattern recherché, donc on evalue l'expression associée à ce pattern
-        (Vcons tag vals, Just (tag2, vars)) -> if (tag == tag2) && 
-            ((length vals) == (length vars)) 
-            then eval ((zip vars vals) ++ _senv) _denv (snd x) 
-            else eval _senv _denv (Lcase test xs)
-
-eval _senv _denv (Llet bind var val exp) =
-        case bind of
-        Lexical -> eval ((var,(eval _senv _denv val)):_senv) _denv exp
-        Dynamic -> eval _senv ((var,(eval _senv _denv val)):_denv) exp
-
-eval _ _ e = error ("Can't eval: " ++ show e)
+-- ¡¡ COMPLETER !!
+--eval _ _ e = error ("Can't eval: " ++ show e)
 
 ---------------------------------------------------------------------------
 -- Toplevel                                                              --
