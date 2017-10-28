@@ -2,7 +2,7 @@
 
 par Rémi Langevin et Christophe Apollon-Roy
 
-\subsection{1. Problèmes rencontrés}\label{probluxe8mes-rencontruxe9s}
+\subsection{1. Problèmes rencontrés}\label{problemes-rencontres}
 
 \paragraph{Trouver le format de base de
 Llambda}\label{trouver-le-format-de-base-de-llambda}
@@ -15,7 +15,7 @@ directement sur la structure arborescente des S-expressions et ainsi
 déterminer les patterns associés à chaque type de Sexp.
 
 \paragraph{Gérer les Llet imbriqués et avec assignation
-multiples}\label{guxe9rer-les-llet-imbriquuxe9s-et-avec-assignation-multiples}
+multiples}\label{guxe9rer-les-llet-imbriques-et-avec-assignation-multiples}
 
 Trouver les patterns associés et comment extraire de multiples
 déclarations dans un Llet fut une tâche complexe. Nous avons eu besoin
@@ -72,9 +72,14 @@ implémentées correctement.
 
 Nous avons choisi de ne pas avoir de souplesse dans la syntaxe acceptée,
 car trouver les patterns associés à certains modèles devenait une tâche
-trop coriace. Nous avons choisi, en fin de travail, de ne faire aucune
-vraie différence entre les dlet et les llet dans eval (s2l fait la
+trop coriace.
+
+Aussi, nous avons choisi, en fin de travail, de ne faire aucune vraie
+différence entre les dlet et les llet dans eval (s2l fait la
 différence), donc au final, il n'y a aucune différence entre les deux.
 
 \subsection{4. Options sciemment
-rejetées}\label{options-sciemment-rejetuxe9es}
+rejetées}\label{options-sciemment-rejetees}
+
+Nous avons malheureusment rejeté le dernier test dans exemples.psil, car
+nous n'avons pas trouvé de solution à temps pour le résoudre.

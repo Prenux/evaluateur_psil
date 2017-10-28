@@ -66,8 +66,13 @@ implémentées correctement.
 
 Nous avons choisi de ne pas avoir de souplesse dans la syntaxe acceptée,
 car trouver les patterns associés à certains modèles devenait une tâche
-trop coriace. Nous avons choisi, en fin de travail, de ne faire
+trop coriace.
+
+Aussi, nous avons choisi, en fin de travail, de ne faire
 aucune vraie différence entre les dlet et les llet dans eval (s2l fait la
 différence), donc au final, il n'y a aucune différence entre les deux.
 
 ## 4. Options sciemment rejetées
+
+Nous avons malheureusment rejeté le dernier test dans exemples.psil, car
+nous n'avons pas trouvé de solution à temps pour le résoudre.
