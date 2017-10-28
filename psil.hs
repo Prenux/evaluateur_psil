@@ -220,9 +220,7 @@ getVar (Scons a b) = getVar a
 unsweetner :: Lexp -> Lexp
 unsweetner e = 
     case e of
---    Lapp (Llambda var (Llambda [x] (exp))) args -> 
---        Lapp (Llambda (var ++ [x]) (exp)) args
-    Llambda var (Llambda [x] (exp)) -> unsweetner(Llambda (var ++ [x]) exp)
+    Llambda var (Llambda vars (exp)) -> unsweetner(Llambda (var ++ vars) exp)
     _ -> e
      
 getDec :: (BindingType, Sexp) -> (Lexp -> Lexp)
