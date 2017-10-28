@@ -1,0 +1,21 @@
+12345       ; ~> 12345
+
+>           ; ~> <2-args function>
+
+(> 5 10)    ; ~> false
+
+(>= 10 10)  ; ~> true
+
+(((lambda (x y) (+ x y)) 2)3)   ; ~> 5
+
+(cons miaw (cons wouf 2 3) 4)   ; ~> [miaw [wouf 2 3] 4]
+
+((((lambda (x) (lambda (y) (lambda (z) (* (* x y) z))))2)3)4)       ; ~> 24
+
+(dlet (((curried_ft x) (lambda (y) (* x y)))(x 90))((curried_ft 2)3))  ; ~> 270
+
+(case (cons miaw 3 4) (wouf 4) ((miaw x) (10)) ((miaw x y) ((lambda (z) (if (< (+ x y) z) z (+ x y)))8))) ; ~> 8
+
+(case (cons miaw 3 4) (_ 2) ((miaw x y) ((lambda (z) (if (< (+ x y) z) z (+ x y)))8)))      ; ~> 2
+
+(slet (((fib n) (if (<= n 1) n (+ (fib (- n 2)) (fib (- n 1)))))) (fib 20))

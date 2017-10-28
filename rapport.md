@@ -3,15 +3,16 @@
 par Rémi Langevin
 et  Christophe Apollon-Roy
 
-## Problèmes rencontrés
+## 1. Problèmes rencontrés
 
 #### Trouver le format de base de Llambda
 
 Au départ, nous avions décidé de transformer l'arbre de Sexp en liste. Au
 début, cela facilitait la tâche. Toutefois, nous avons rapidement eu des
 difficultés avec les cas plus complexes, dont le lambda. À partir de ce
-moment, nous avons décidé d'y aller avec du pattern matching et
-déterminer les patterns associés à chaque type de Sexp.
+moment, nous avons décidé d'y aller avec du pattern matching directement
+sur la structure arborescente des S-expressions et ainsi déterminer les
+patterns associés à chaque type de Sexp.
 
 #### Gérer les Llet imbriqués et avec assignation multiples
 
@@ -23,7 +24,7 @@ dessiner quelques arbres afin de bien généraliser.
 
 Le currying nous a couté beaucoup de temps et de modifications dans le
 code. À un certain point, d'un côté, nous pouvions faire fonctionner les
-fonctions non-curried, de l'autre less fonctions curried, mais jamais les
+fonctions non-curried, de l'autre les fonctions curried, mais jamais les
 deux en même temps. Cela se jouait au niveau du Lapp. Sans currying, nous
 avions:
 ```
@@ -39,39 +40,34 @@ s2l (Scons Snil a) =
    ...
    (Lapp x y) -> Lapp (Lapp x y) []
 ```
-Nous avions donc eu du trouble à trouver une façon de faire qui
-fonctionne pour les deux.
+Nous avions donc eu des difficultés à trouver une méthode adéquate pour
+les deux cas.
 
 #### Unsweetner
 
 Se débarasser du sucre syntaxique fut une autre fonction complexe à
 implémenter sans briser le code déjà existant.
 
-## Surprises
+## 2. Surprises
 
 Nous avons été surpris à quel point les cases, cons et if furent facile à
-implémenter. Autrement, pouvoir utiliser la structure de l'arbre
-directement avec du pattern matching nous a surpris.
+implémenter. Le fait de pouvoir utiliser la structure de l'arbre
+directement avec du pattern matching fut une autre plaisante surprise.
 
-De plus, malgré la difficulté que le travail nous a donné et bien que
-nous ne le ferions pas à nouveau, nous nous sommes surpris à apprécier
-l'exercice.
+De plus, malgré la difficulté du travail, nous nous sommes surpris à
+apprécier l'exercice, bien que nous ne le referions pas une deuxième fois.
 
-Ensuite, nous avons été surpris à quel point nous pouvons construire par
-dessus les fonctions existantes sans se soucier de comment elle allait 
-agir lorsque celles-ci sont bien pensées à la base.
+Ensuite, nous avions été surpris par la facilité avec laquelle nous
+pouvions ajouter d'autres fonctions utilisant des fonctions déjà
+présentes sans se soucier de leurs interactions lorsque celles-ci sont
+implémentées correctement.
 
-Malgré tout cela, les problèmes rencontrés nous ont couté beaucoup de
-temps, ce qui a un peu terni l'expérience.
-
-## Choix
+## 3. Choix
 
 Nous avons choisi de ne pas avoir de souplesse dans la syntaxe acceptée,
-car cela devenait trop complexe de trouver les patterns associés à
-certains modèles. Nous avons choisi, en fin de travail, de ne faire
-aucune vrai différence entre les dlet et les llet dans eval (s2l fait la
+car trouver les patterns associés à certains modèles devenait une tâche
+trop coriace. Nous avons choisi, en fin de travail, de ne faire
+aucune vraie différence entre les dlet et les llet dans eval (s2l fait la
 différence), donc au final, il n'y a aucune différence entre les deux.
 
-## Options sciemment rejetées
-
-Nous avons sciemment rejeté l'idée de v
+## 4. Options sciemment rejetées
