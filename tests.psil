@@ -31,5 +31,5 @@
         (_ 2) 
         ((miaw x y) ((lambda (z) (if (< (+ x y) z) z (+ x y)))8)))      ; ~> 2
 
-(dlet (((fib n) (if (<= n 1) n (+ (fib (- n 2)) (fib (- n 1)))))) (fib 20))   
+(slet (((fib n) (if (<= n 1) n (+ (fib (- n 2)) (fib (- n 1)))))) (fib 20))   
                                                                     ; ~> 6765
