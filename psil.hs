@@ -1,6 +1,8 @@
 -- TP-2  --- Implantation d'une sorte de Lisp          -*- coding: utf-8 -*-
 {-# OPTIONS_GHC -Wall #-}
-
+--Modifié par:
+--Rémi Langevin (20037847)
+--Christophe Apollon-Roy (920403)
 -- Ce fichier défini les fonctionalités suivantes:
 -- - Analyseur lexical
 -- - Analyseur syntaxique
@@ -197,41 +199,51 @@ data Lexp = Lnum Int            -- Constante entière.
           | Llet BindingType Var Lexp Lexp -- Déclaration de variable locale
           deriving (Show, Eq)
 
+--Les fonctions ci-dessous assisstent s2l dans sa tâche
+--Permet de rassembler les variables demandées par une lambda dans un tableau
 sconsToVarArr :: Sexp -> [Var]
 sconsToVarArr (Scons Snil (Ssym x)) = [x]
 sconsToVarArr (Scons (Scons a b) (Ssym x)) = (sconsToVarArr (Scons a b)) ++ [x]
 sconsToVarArr (Scons Snil (Scons a b)) = (sconsToVarArr (Scons a b))
 
+--Recherche des Sexp contenant les patterns d'un Case
 getPat :: Sexp -> Pat
--- Not sure if gusta all the time... (i.e. : (Lapp (Llamba x y) z))
 getPat (Scons Snil (Scons a b)) = (getPat (Scons a b))
--- got label, so create pattern
+-- Symbole trouvé, c'est le tag
 getPat (Scons Snil (Ssym a)) = Just (a,[])
--- label will be in the Scons, so append Ssym to [Var]
+-- Ajout des valeurs après le tag
 getPat (Scons (Scons a b) (Ssym c)) = 
     case (getPat (Scons a b)) of
     (Just (a,b)) -> Just (a,(b ++ c:[]))
 
+--Recherche de la variable identifiant un fonction lors de sa déclaration
 getVar :: Sexp -> Var
 getVar (Scons Snil (Ssym a)) = a
 getVar (Scons Snil (Scons a b)) = getVar (Scons a b)
 getVar (Scons a b) = getVar a
 
+--Permet l'élimination du sucre syntaxique lors de la déclaration de lambdas
 unsweetner :: Lexp -> Lexp
 unsweetner e = 
     case e of
     Llambda var (Llambda vars (exp)) -> unsweetner(Llambda (var ++ vars) exp)
     _ -> e
      
+--Recherche les déclarations dlet/slet dans l'arbre de Sexp fourni
 getDec :: (BindingType, Sexp) -> (Lexp -> Lexp)
+--Déclaration du style x = 3
 getDec (bind,(Scons Snil (Scons (Scons Snil (Ssym x)) (y)))) = 
     Llet bind x (s2l y)
+--Déclaration d'une fonction
 getDec (bind, (Scons Snil (Scons fDec fCore))) = 
     Llet bind (getVar fDec) (Llambda (tail (sconsToVarArr fDec)) (s2l fCore))
+----Déclaration du style x = 3
 getDec (bind, (Scons (Scons Snil (Ssym x)) (Snum y))) = 
     Llet bind x (s2l (Snum y))
+--Déclaration du style x = y
 getDec (bind, (Scons (Scons Snil (Ssym x)) (Ssym y))) = 
     Llet bind x (s2l (Ssym y))
+--Lorsqu'il y a un sous-arbre contenant d'autres Let dans l'arbre de Sexp
 getDec (bind, (Scons a b)) = (getDec (bind, a)) . (getDec (bind, b))
 getDec (bind, (Scons (Scons Snil (Ssym "slet")) d)) = (getDec (Lexical, d))
 getDec (bind, (Scons (Scons Snil (Ssym "dlet")) d)) = (getDec (Dynamic, d))
@@ -301,7 +313,9 @@ type Arity = Int
 -- Type des valeurs manipulée à l'exécution.
 data Value = Vnum Int
            | Vcons Tag [Value]
-           | Vfun Arity (Env -> [Value] -> Value)
+           | Vfun Arity Env (Env -> [Value] -> Value)
+           --Les fonctions gardent une copie de l'environnement au moment de 
+           --leur déclaration pour les besoins de fermeture
 
 instance Show Value where
     showsPrec p (Vnum n) = showsPrec p n
@@ -310,7 +324,7 @@ instance Show Value where
             showTail (v : vs') =
                 showChar ' ' . showsPrec p v . showTail vs'
         in showChar '[' . showString tag . showTail vs
-    showsPrec _ (Vfun arity _)
+    showsPrec _ (Vfun arity _ _)
         = showString ("<" ++ show arity ++ "-args-function>")
 
 type Env = [(Var, Value)]
@@ -320,9 +334,9 @@ env0 :: Env
 env0 = let false = Vcons "false" []
            true = Vcons "true" []
            mkbop (name, op) =
-               (name, Vfun 2 (\ _ [Vnum x, Vnum y] -> Vnum (x `op` y)))
+               (name, Vfun 2 [] (\ _ [Vnum x, Vnum y] -> Vnum (x `op` y)))
            mkcmp (name, op) =
-               (name, Vfun 2 (\ _ [Vnum x, Vnum y]
+               (name, Vfun 2 [] (\ _ [Vnum x, Vnum y]
                                   -> if x `op` y then true else false))
        in [("false", false),
            ("true", true)]
@@ -353,7 +367,7 @@ eval _senv [] (Lvar x) =
     Nothing -> error ("Variable "++ (showSexp (Ssym x)) ++ " not found")
 
 eval _senv _denv (Lvar x) = 
---évaluation d'une variable.
+--évaluation d'une variable
     case lookup x _senv of
     Just _a -> _a
     Nothing ->
@@ -365,18 +379,19 @@ eval _senv _denv (Llambda vars exp) =
 --évaluation des lambda
     let
     args = (map (eval _senv _denv) (map Lvar vars))
-    in Vfun (length vars) (\env args -> eval ((zip vars args) ++ env) _denv exp)
+    in Vfun (length vars) _senv (\env args -> eval ((zip vars args) ++ env) _denv exp)
 
 
 eval _senv _denv (Lapp op args) = 
 --évaluation d'une fonction.
     let fCons = eval _senv _denv op
     in case fCons of
-    Vfun a f ->  
+    Vfun a closure f ->  
         if (a == (length args)) 
-        then f (_denv ++ _senv) (map (eval _senv _denv) args) 
+        then f (closure ++ _senv ++_denv) (map (eval _senv _denv) args) 
         else error "incorrect number of arguments"
 
+--Déclaration d'un datatype
 eval _senv _denv (Lcons tag args) = Vcons tag (map (eval _senv _denv) args) 
 
 --si, lors de l'évaluation, on passe au travers de tous les patterns sans succès
@@ -396,11 +411,10 @@ eval _senv _denv (Lcase test (x:xs)) =
             then eval ((zip vars vals) ++ _senv) _denv (snd x) 
             else eval _senv _denv (Lcase test xs)
 
+--Évaluation des let
 eval _senv _denv (Llet bind var val exp) =
         case bind of
-        Lexical -> case lookup var _senv of
-            Nothing -> eval ((var,(eval _senv _denv val)):_senv) _denv exp
-            Just _a -> eval (_senv ++ [(var,(eval _senv _denv val))]) _denv exp
+        Lexical -> eval ((var,(eval _senv _denv val)):_senv) _denv exp
         Dynamic -> eval _senv ((var,(eval _senv _denv val)):_denv) exp
 
 eval _ _ e = error ("Can't eval: " ++ show e)

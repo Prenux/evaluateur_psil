@@ -1,3 +1,7 @@
+;Tests écrits par:
+;Rémi Langevin (20037847)
+;Christophe Apollon-Roy (920403)
+
 12345       ; ~> 12345
 
 >           ; ~> <2-args function>
@@ -12,10 +16,20 @@
 
 ((((lambda (x) (lambda (y) (lambda (z) (* (* x y) z))))2)3)4)       ; ~> 24
 
-(dlet (((curried_ft x) (lambda (y) (* x y)))(x 90))((curried_ft 2)3))  ; ~> 270
+(dlet (((curried_ft x1) (dlet ((x x1)) (lambda (y) (* x y))))
+    (x 90))
+((curried_ft 2)3))  ; ~> 270
 
-(case (cons miaw 3 4) (wouf 4) ((miaw x) (10)) ((miaw x y) ((lambda (z) (if (< (+ x y) z) z (+ x y)))8))) ; ~> 8
+(case (cons miaw 3 4) ((wouf) 4) 
+                        ((miaw x) (10)) 
+                        ((miaw x y) 
+                            ((lambda (z) (if (< (+ x y) z)
+                                             z 
+                                             (+ x y)))8))) ; ~> 8
 
-(case (cons miaw 3 4) (_ 2) ((miaw x y) ((lambda (z) (if (< (+ x y) z) z (+ x y)))8)))      ; ~> 2
+(case (cons miaw 3 4) 
+        (_ 2) 
+        ((miaw x y) ((lambda (z) (if (< (+ x y) z) z (+ x y)))8)))      ; ~> 2
 
-(slet (((fib n) (if (<= n 1) n (+ (fib (- n 2)) (fib (- n 1)))))) (fib 20))
+(dlet (((fib n) (if (<= n 1) n (+ (fib (- n 2)) (fib (- n 1)))))) (fib 20))   
+                                                                    ; ~> 6765
